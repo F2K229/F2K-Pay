@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>F2KPay — Encaissez en ligne sans site web</title>
+<meta name="description" content="Créez des liens de paiement Mobile Money et carte bancaire en 30 secondes.">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+/* ══════════════════════════════════════
+   RESET & VARIABLES
+══════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --g:#1D9E75;--gl:#E1F5EE;--gd:#0F6E56;--gm:#9FE1CB;
+  --a:#EF9F27;--al:#FEF3DC;
+  --r:#E53E3E;--rl:#FFF0F0;
+  --bg:#F2F7F4;--surf:#fff;--brd:#dde8e2;
+  --tx:#141f1a;--mu:#587066;--hi:#98b4ac;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+  --rad:12px;--rs:8px;
+  --shadow:0 2px 12px rgba(0,0,0,.06);
+}
+html{font-size:16px}
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh;overflow-x:hidden}
+img{max-width:100%}
+button{cursor:pointer;font-family:var(--fb)}
+input,select,textarea{font-family:var(--fb)}
+
+/* ══ LOADER ══ */
+#loader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+#loader.hide{opacity:0;pointer-events:none}
+.loader-inner{text-align:center}
+.loader-logo{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--g)}
+.loader-bar{width:120px;height:3px;background:var(--brd);border-radius:10px;margin:12px auto 0;overflow:hidden}
+.loader-fill{height:100%;background:var(--g);border-radius:10px;animation:loadfill 1.5s ease-in-out infinite}
+@keyframes loadfill{0%{width:0%;margin-left:0}50%{width:80%;margin-left:0}100%{width:0%;margin-left:100%}}
+
+/* ══ NAV ══ */
+nav{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.logo{font-family:var(--fh);font-weight:800;font-size:20px;color:var(--g);letter-spacing:-.5px;cursor:pointer;flex-shrink:0}
+.logo span{color:var(--tx)}
+.nav-center{display:flex;gap:2px}
+.nl{padding:6px 12px;border-radius:var(--rs);border:none;background:none;font-family:var(--fb);font-size:12px;color:var(--mu);display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.nl.on{background:var(--gl);color:var(--gd);font-weight:500}
+.nl:hover:not(.on){background:var(--bg)}
+.nav-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.nav-btn{padding:6px 14px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.nav-btn.outline{background:none;border:1.5px solid var(--g);color:var(--g)}
+.nav-btn.solid{background:var(--g);color:#fff}
+.av{width:32px;height:32px;border-radius:50%;background:var(--g);color:#fff;font-weight:700;font-size:11px;font-family:var(--fh);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative}
+.av-dot{position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--a);border:2px solid #fff;display:none}
+
+/* Mobile Nav Hidden Labels */
+@media(max-width:480px){
+  .nl .nl-label{display:none}
+  .nav-btn.outline{display:none}
+}
+
+/* ══ PAGES ══ */
+.pg{display:none}
+.pg.on{display:block;animation:fu .2s ease}
+@keyframes fu{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ TOAST ══ */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(20px);background:#141f1a;color:#fff;padding:11px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;white-space:nowrap;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--r)}
+.toast.warn{background:var(--a)}
+
+/* ══ MODAL ══ */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center;padding:0}
+@media(min-width:600px){.modal-bg{align-items:center;padding:16px}}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:16px 16px 0 0;padding:24px 20px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto}
+@media(min-width:600px){.modal{border-radius:var(--rad)}}
+.modal h3{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:4px}
+.modal-sub{font-size:13px;color:var(--mu);margin-bottom:20px}
+.modal-close{float:right;background:none;border:none;font-size:22px;color:var(--mu);cursor:pointer;line-height:1}
+.modal-handle{width:36px;height:4px;background:var(--brd);border-radius:10px;margin:0 auto 16px}
+
+/* ══ FORMS ══ */
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;font-weight:600;margin-bottom:5px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.fg input,.fg select,.fg textarea{width:100%;padding:11px 13px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:var(--fb);font-size:14px;background:var(--surf);color:var(--tx);outline:none;transition:border-color .15s;-webkit-appearance:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--g)}
+.fg input[type="file"]{padding:8px;font-size:12px;border-style:dashed}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ══ BUTTONS ══ */
+.btn{padding:10px 18px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn-g{background:var(--g);color:#fff}.btn-g:hover{background:var(--gd)}
+.btn-o{background:none;border:1.5px solid var(--brd);color:var(--tx)}.btn-o:hover{background:var(--bg)}
+.btn-r{background:var(--r);color:#fff}
+.btn-a{background:var(--a);color:#fff}
+.btn-full{width:100%;padding:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ══ BADGES ══ */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.b-ok{background:var(--gl);color:var(--gd)}
+.b-wait{background:var(--al);color:#854F0B}
+.b-ko{background:var(--rl);color:var(--r)}
+.b-info{background:#EBF4FF;color:#2B6CB0}
+.b-grey{background:var(--bg);color:var(--mu)}
+
+/* ══ CARD ══ */
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rad);padding:16px;box-shadow:var(--shadow)}
+
+/* ══════════════════════════════════════
+   LANDING PAGE — MOBILE FIRST
+══════════════════════════════════════ */
+#landing{background:#fff}
+
+/* Hero */
+.hero{background:linear-gradient(160deg,#0a2318 0%,#0f6e56 55%,#1D9E75 100%);padding:48px 20px 44px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='0.04'%3E%3Cpath d='M20 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM0 20v-4h-2v4h-4v2h4v4h2v-4h4v-2H0z'/%3E%3C/g%3E%3C/svg%3E")}
+.hero-badge{position:relative;display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:4px 12px;font-size:11px;margin-bottom:16px}
+.hero h1{position:relative;font-family:var(--fh);font-size:30px;font-weight:800;line-height:1.12;margin-bottom:14px}
+@media(min-width:480px){.hero h1{font-size:38px}}
+@media(min-width:768px){.hero{padding:80px 48px 70px}.hero h1{font-size:50px}}
+.accent{color:#86e8c4}
+.hero-p{position:relative;font-size:15px;opacity:.85;max-width:440px;margin:0 auto 28px;line-height:1.6}
+.hero-cta{position:relative;display:flex;flex-direction:column;gap:10px;align-items:center}
+@media(min-width:400px){.hero-cta{flex-direction:row;justify-content:center}}
+.btn-hp{padding:13px 24px;border-radius:var(--rs);font-weight:700;cursor:pointer;font-family:var(--fh);font-size:14px;border:none;background:#fff;color:var(--gd);transition:all .15s;width:100%;max-width:200px}
+.btn-ho{padding:13px 24px;border-radius:var(--rs);font-weight:500;cursor:pointer;font-family:var(--fb);font-size:14px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;transition:all .15s;width:100%;max-width:200px}
+
+/* Trust bar */
+.trust-bar{display:flex;overflow-x:auto;gap:0;padding:0;border-bottom:1px solid var(--brd);scrollbar-width:none}
+.trust-bar::-webkit-scrollbar{display:none}
+.trust-i{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);padding:12px 14px;border-right:1px solid var(--brd);white-space:nowrap;flex-shrink:0}
+.trust-i i{color:var(--g);font-size:14px}
+
+/* Features */
+.feat-grid{display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:600px){.feat-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:900px){.feat-grid{grid-template-columns:repeat(3,1fr)}}
+.feat-grid{background:var(--brd);gap:1px}
+.fc{background:#fff;padding:24px 20px}
+@media(min-width:600px){.fc{padding:30px 24px}}
+.fi{width:42px;height:42px;border-radius:10px;background:var(--gl);display:flex;align-items:center;justify-content:center;margin-bottom:14px;color:var(--g)}
+.fi i{font-size:20px}
+.fc h3{font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:6px}
+.fc p{color:var(--mu);font-size:13px;line-height:1.65}
+
+/* Stats */
+.stats-strip{display:grid;grid-template-columns:1fr 1fr;background:#0a2318;color:#fff}
+@media(min-width:600px){.stats-strip{grid-template-columns:repeat(4,1fr)}}
+.st{padding:24px 16px;text-align:center;border-right:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
+.st-n{font-family:var(--fh);font-size:30px;font-weight:800;color:#86e8c4;display:block}
+.st-l{font-size:11px;opacity:.6;margin-top:3px}
+
+/* Pricing */
+.pricing-sec{padding:40px 16px;background:var(--bg)}
+@media(min-width:600px){.pricing-sec{padding:56px 32px}}
+.sh{text-align:center;margin-bottom:28px}
+.sh h2{font-family:var(--fh);font-size:24px;font-weight:800;margin-bottom:6px}
+@media(min-width:600px){.sh h2{font-size:28px}}
+.sh p{color:var(--mu);font-size:13px}
+.pgrid{display:grid;grid-template-columns:1fr;gap:14px;max-width:860px;margin:0 auto}
+@media(min-width:600px){.pgrid{grid-template-columns:1fr 1fr}}
+@media(min-width:860px){.pgrid{grid-template-columns:repeat(3,1fr)}}
+.pc{background:#fff;border:1.5px solid var(--brd);border-radius:var(--rad);padding:22px;position:relative}
+.pc.feat{border-color:var(--g);box-shadow:0 0 0 3px rgba(29,158,117,.08)}
+.fp{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--g);color:#fff;font-size:10px;font-weight:600;padding:3px 12px;border-radius:20px;white-space:nowrap;font-family:var(--fh)}
+.pn{font-size:10px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.pp{font-family:var(--fh);font-size:28px;font-weight:800;margin:4px 0}
+.pp small{font-size:12px;color:var(--mu);font-family:var(--fb);font-weight:400}
+.pd{font-size:11px;color:var(--hi);margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--brd)}
+.pfl{list-style:none;margin-bottom:18px;display:flex;flex-direction:column;gap:7px}
+.pfl li{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.pfl li i{color:var(--g);font-size:13px;flex-shrink:0}
+
+/* Footer landing */
+.landing-footer{background:#0a2318;color:rgba(255,255,255,.5);text-align:center;padding:20px 16px;font-size:12px}
+.landing-footer a{color:#86e8c4}
+
+/* ══════════════════════════════════════
+   AUTH
+══════════════════════════════════════ */
+#auth-pg{min-height:calc(100vh - 54px);display:flex;align-items:center;justify-content:center;padding:20px 16px;background:var(--bg)}
+.auth-card{background:#fff;border-radius:var(--rad);padding:28px 20px;max-width:400px;width:100%;box-shadow:var(--shadow)}
+.auth-logo{font-family:var(--fh);font-size:24px;font-weight:800;color:var(--g);margin-bottom:4px}
+.auth-logo span{color:var(--tx)}
+.auth-sub{font-size:13px;color:var(--mu);margin-bottom:22px}
+.auth-toggle{display:flex;gap:3px;background:var(--bg);border-radius:var(--rs);padding:3px;margin-bottom:20px}
+.at{flex:1;padding:8px;border-radius:6px;border:none;background:none;font-family:var(--fb);font-size:13px;color:var(--mu);cursor:pointer;transition:all .15s}
+.at.on{background:#fff;color:var(--gd);font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+/* ══════════════════════════════════════
+   DASHBOARD MARCHAND
+══════════════════════════════════════ */
+#dash-pg{padding:16px}
+@media(min-width:600px){#dash-pg{padding:24px 28px}}
+.dash-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+.dash-top h2{font-family:var(--fh);font-size:18px;font-weight:700}
+.dash-top p{color:var(--mu);font-size:12px;margin-top:2px}
+
+/* KYC Banner */
+.kyc-banner{border-radius:var(--rad);padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.kyc-banner.pending{background:var(--al);border:1.5px solid var(--a)}
+.kyc-banner.none,.kyc-banner.rejected{background:var(--rl);border:1.5px solid #FC8181}
+.kyc-banner.approved{background:var(--gl);border:1.5px solid var(--g)}
+.kb-left{display:flex;align-items:flex-start;gap:10px}
+.kb-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.kb-title{font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:2px}
+.kb-text{font-size:12px;color:var(--mu)}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(min-width:600px){.metrics{grid-template-columns:repeat(4,1fr)}}
+.mc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rad);padding:14px}
+.mc-label{font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.mc-val{font-family:var(--fh);font-size:22px;font-weight:800}
+.mc-unit{font-size:10px;color:var(--hi);margin-top:1px}
+
+/* Tabs */
+.tab-nav{display:flex;gap:0;border-bottom:1px solid var(--brd);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{padding:8px 14px;border:none;background:none;font-family:var(--fb);font-size:12px;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0}
+.tab-btn.on{color:var(--g);border-bottom-color:var(--g);font-weight:500}
+.tab-pane{display:none}.tab-pane.on{display:block}
+
+/* Table responsive */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--rad);border:1px solid var(--brd);background:#fff}
+table{width:100%;border-collapse:collapse;min-width:480px}
+th{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;padding:9px 12px;text-align:left;border-bottom:1px solid var(--brd);white-space:nowrap;background:var(--bg)}
+td{padding:10px 12px;border-bottom:1px solid var(--bg);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fcfa}
+.empty{text-align:center;padding:28px 16px;color:var(--hi);font-size:13px}
+.empty i{font-size:24px;display:block;margin-bottom:6px}
+
+/* Chart */
+.dash-cols{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:700px){.dash-cols{grid-template-columns:1.8fr 1fr}}
+.bars{display:flex;align-items:flex-end;gap:4px;height:70px}
+.bg2{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bb{width:100%;border-radius:3px 3px 0 0;background:var(--gl)}
+.bb.hi{background:var(--g)}
+.bbl{font-size:9px;color:var(--hi)}
+.mb-list{display:flex;flex-direction:column;gap:9px}
+.mbr{display:flex;flex-direction:column;gap:3px}
+.mbh{display:flex;justify-content:space-between;font-size:11px}
+.mbt{background:var(--bg);border-radius:3px;height:4px;overflow:hidden}
+.mbf{height:100%;border-radius:3px}
+
+/* Withdraw */
+.info-box{padding:11px 13px;border-radius:var(--rs);font-size:12px;line-height:1.6;margin-bottom:14px}
+.info-box.warn{background:var(--al);border:1px solid var(--a);color:#854F0B}
+.info-box.danger{background:var(--rl);border:1px solid #FC8181;color:var(--r)}
+.info-box.success{background:var(--gl);border:1px solid var(--g);color:var(--gd)}
+
+/* ══════════════════════════════════════
+   ADMIN
+══════════════════════════════════════ */
+#admin-pg{padding:16px}
+@media(min-width:600px){#admin-pg{padding:24px 28px}}
+.admin-head{background:linear-gradient(135deg,#0a2318,#1D9E75);border-radius:var(--rad);padding:18px 20px;margin-bottom:18px;color:#fff;display:flex;align-items:center;gap:12px}
+.admin-icon{width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.admin-icon i{font-size:22px}
+.admin-head h2{font-family:var(--fh);font-size:17px;font-weight:700}
+.admin-head p{font-size:11px;opacity:.75;margin-top:2px}
+.admin-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(min-width:600px){.admin-metrics{grid-template-columns:repeat(4,1fr)}}
+.btn-xs{padding:5px 9px;border-radius:6px;border:none;font-family:var(--fb);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.bx-g{background:var(--gl);color:var(--gd)}.bx-g:hover{background:var(--g);color:#fff}
+.bx-r{background:var(--rl);color:var(--r)}.bx-r:hover{background:var(--r);color:#fff}
+.bx-a{background:var(--al);color:#7B341E}.bx-a:hover{background:var(--a);color:#fff}
+.bx-grey{background:var(--bg);color:var(--mu)}.bx-grey:hover{background:var(--brd)}
+.td-user{display:flex;align-items:center;gap:7px}
+.u-av{width:28px;height:28px;border-radius:50%;background:var(--g);color:#fff;font-weight:700;font-size:10px;font-family:var(--fh);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kyc-thumb{width:52px;height:38px;border-radius:5px;object-fit:cover;border:1px solid var(--brd);cursor:pointer;flex-shrink:0}
+.kyc-thumb:hover{opacity:.8;transform:scale(1.05)}
+.td-actions{display:flex;gap:4px;flex-wrap:wrap}
+
+/* ══════════════════════════════════════
+   CHECKOUT
+══════════════════════════════════════ */
+#checkout-pg{background:#ECF3EE;min-height:calc(100vh - 54px);padding:20px 14px}
+.co-wrap{max-width:400px;margin:0 auto}
+.co-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+.co-head{background:linear-gradient(145deg,#0a2318,#1D9E75);padding:24px 20px;color:#fff}
+.co-merch{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.co-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-weight:800;font-size:14px;border:1px solid rgba(255,255,255,.2)}
+.co-mn{font-weight:600;font-size:14px}
+.co-ms{font-size:11px;opacity:.65;margin-top:1px}
+.co-amt{font-family:var(--fh);font-size:38px;font-weight:800;line-height:1}
+.co-cur{font-size:15px;opacity:.75;font-weight:400}
+.co-desc{font-size:12px;opacity:.75;margin-top:5px}
+.co-body{padding:20px}
+.co-tabs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--brd);border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
+.ct{padding:9px;text-align:center;font-size:12px;cursor:pointer;background:#fff;border:none;font-family:var(--fb);color:var(--mu);font-weight:500;transition:all .15s}
+.ct.on{background:var(--gl);color:var(--gd)}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.pm{border:1.5px solid var(--brd);border-radius:var(--rs);padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s}
+.pm.sel{border-color:var(--g);background:var(--gl)}
+.pm-em{font-size:20px}
+.pm-nm{font-size:11px;font-weight:500;margin-top:4px;color:var(--tx)}
+.ph-row{display:flex;gap:6px}
+.ph-pre{padding:10px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);background:var(--bg);font-size:13px;color:var(--mu);white-space:nowrap}
+.btn-pay{width:100%;padding:13px;border-radius:var(--rs);background:var(--g);color:#fff;border:none;font-family:var(--fh);font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-pay:hover{background:var(--gd)}
+.co-foot{text-align:center;padding:10px 18px 16px;font-size:11px;color:var(--hi)}
+.sec-row{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px}
+.state-box{display:none;text-align:center;padding:36px 20px}
+.spin{width:44px;height:44px;border:3px solid var(--gl);border-top-color:var(--g);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.succ-ico{width:60px;height:60px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--g);font-size:26px;border:2px solid var(--gm)}
+
+/* Upload */
+.upload-zone{border:2px dashed var(--brd);border-radius:var(--rs);padding:20px 16px;text-align:center;cursor:pointer;transition:all .15s;position:relative;margin-top:4px}
+.upload-zone:hover{border-color:var(--g);background:var(--gl)}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0}
+.upload-zone i{font-size:24px;color:var(--hi);display:block;margin-bottom:6px}
+.upload-zone p{font-size:12px;color:var(--mu)}
+.upload-zone small{font-size:11px;color:var(--hi)}
+.up-prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.up-thumb{width:70px;height:52px;border-radius:5px;object-fit:cover;border:1px solid var(--brd)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:10px}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-inner">
+    <div class="loader-logo">F2KPay</div>
+    <div class="loader-bar"><div class="loader-fill"></div></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════ NAVBAR ════════════════ -->
+<nav>
+  <div class="logo" onclick="goPage('landing')">F2K<span>Pay</span></div>
+  <div class="nav-center" id="nav-center">
+    <button class="nl on" id="nl-home" onclick="goPage('landing')"><i class="ti ti-home"></i><span class="nl-label">Accueil</span></button>
+    <button class="nl" id="nl-dash" onclick="goPage('dash-pg')" style="display:none"><i class="ti ti-layout-dashboard"></i><span class="nl-label">Dashboard</span></button>
+    <button class="nl" id="nl-admin" onclick="goPage('admin-pg')" style="display:none"><i class="ti ti-shield"></i><span class="nl-label">Admin</span></button>
+  </div>
+  <div class="nav-r" id="nav-guest">
+    <button class="nav-btn outline" onclick="showAuth('login')">Connexion</button>
+    <button class="nav-btn solid" onclick="showAuth('register')">S'inscrire</button>
+  </div>
+  <div class="nav-r" id="nav-user" style="display:none">
+    <span style="font-size:11px;color:var(--mu);display:none" id="nav-name" class="nl-label"></span>
+    <div class="av" id="nav-av" title="Cliquer pour déconnecter" onclick="logout()">
+      <div class="av-dot" id="av-dot"></div>
+    </div>
+    <button class="nav-btn outline" onclick="logout()">Sortir</button>
+  </div>
+</nav>
+
+<!-- ════════════════ LANDING ════════════════ -->
+<div id="landing" class="pg on">
+  <div class="hero">
+    <div class="hero-badge">🌍 Pour l'Afrique de l'Ouest</div>
+    <h1>Encaissez en ligne<br><span class="accent">sans site web</span></h1>
+    <p class="hero-p">Créez un lien de paiement en 30 secondes. Partagez sur WhatsApp. Recevez par Mobile Money.</p>
+    <div class="hero-cta">
+      <button class="btn-hp" onclick="showAuth('register')">Créer mon compte</button>
+      <button class="btn-ho" onclick="showAuth('login')">Se connecter</button>
+    </div>
+  </div>
+
+  <div class="trust-bar">
+    <div class="trust-i"><i class="ti ti-shield-check"></i> Paiements sécurisés</div>
+    <div class="trust-i"><i class="ti ti-device-mobile"></i> MTN · Orange · Moov · Wave</div>
+    <div class="trust-i"><i class="ti ti-credit-card"></i> Visa / Mastercard</div>
+    <div class="trust-i"><i class="ti ti-id-badge"></i> KYC obligatoire pour retirer</div>
+    <div class="trust-i"><i class="ti ti-clock"></i> Versement sous 24h</div>
+  </div>
+
+  <div class="feat-grid">
+    <div class="fc"><div class="fi"><i class="ti ti-link"></i></div><h3>Liens de paiement</h3><p>Créez un lien, partagez-le. Votre client paie sans créer de compte.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-file-invoice"></i></div><h3>Factures numériques</h3><p>Factures professionnelles avec lien de paiement intégré. Suivi en temps réel.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-device-mobile"></i></div><h3>Mobile Money</h3><p>MTN, Orange, Moov, Wave. Vos clients paient avec ce qu'ils ont déjà.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-chart-bar"></i></div><h3>Dashboard analytique</h3><p>Suivez vos ventes, transactions et rapports depuis un seul endroit.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-id-badge"></i></div><h3>KYC & Vérification</h3><p>L'admin valide votre identité. Les retraits sont sécurisés et contrôlés.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-shield"></i></div><h3>Sécurité maximale</h3><p>Retraits approuvés manuellement par l'administrateur avant envoi.</p></div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="st"><span class="st-n">+60</span><div class="st-l">Méthodes de paiement</div></div>
+    <div class="st"><span class="st-n">12+</span><div class="st-l">Pays couverts</div></div>
+    <div class="st"><span class="st-n">2%</span><div class="st-l">Commission</div></div>
+    <div class="st"><span class="st-n">30s</span><div class="st-l">Pour créer un lien</div></div>
+  </div>
+
+  <div class="pricing-sec">
+    <div class="sh"><h2>Tarifs transparents</h2><p>Commencez gratuitement. Évoluez selon vos besoins.</p></div>
+    <div class="pgrid">
+      <div class="pc">
+        <div class="pn">Starter</div>
+        <div class="pp">0 <small>FCFA / mois</small></div>
+        <div class="pd">Pour tester et démarrer</div>
+        <ul class="pfl">
+          <li><i class="ti ti-check"></i>5 liens actifs</li>
+          <li><i class="ti ti-check"></i>Mobile Money uniquement</li>
+          <li><i class="ti ti-check"></i>3% de commission</li>
+        </ul>
+        <button class="btn btn-o btn-full" onclick="showAuth('register')">Commencer</button>
+      </div>
+      <div class="pc feat">
+        <div class="fp">⭐ Populaire</div>
+        <div class="pn">Pro</div>
+        <div class="pp">9 900 <small>FCFA / mois</small></div>
+        <div class="pd">Pour les entrepreneurs actifs</div>
+        <ul class="pfl">
+          <li><i class="ti ti-check"></i>Liens illimités</li>
+          <li><i class="ti ti-check"></i>Mobile Money + Cartes</li>
+          <li><i class="ti ti-check"></i>2% de commission</li>
+          <li><i class="ti ti-check"></i>Factures & rapports</li>
+          <li><i class="ti ti-check"></i>API access</li>
+        </ul>
+        <button class="btn btn-g btn-full" onclick="showAuth('register')">Commencer Pro</button>
+      </div>
+      <div class="pc">
+        <div class="pn">Business</div>
+        <div class="pp">29 900 <small>FCFA / mois</small></div>
+        <div class="pd">Pour les PME</div>
+        <ul class="pfl">
+          <li><i class="ti ti-check"></i>Tout du Pro</li>
+          <li><i class="ti ti-check"></i>1.5% commission</li>
+          <li><i class="ti ti-check"></i>Multi-utilisateurs</li>
+          <li><i class="ti ti-check"></i>Support prioritaire</li>
+        </ul>
+        <button class="btn btn-o btn-full" onclick="showAuth('register')">Commencer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-footer">
+    © 2025 F2KPay · Support : <a href="mailto:adminf2kpay@gmail.com">adminf2kpay@gmail.com</a>
+  </div>
+</div>
+
+<!-- ════════════════ AUTH ════════════════ -->
+<div id="auth-pg" class="pg">
+  <div class="auth-card">
+    <div class="auth-logo">F2K<span>Pay</span></div>
+    <div class="auth-sub" id="auth-sub">Connectez-vous à votre dashboard</div>
+    <div class="auth-toggle">
+      <button class="at on" id="at-login" onclick="switchAuth('login')">Se connecter</button>
+      <button class="at" id="at-reg" onclick="switchAuth('register')">Créer un compte</button>
+    </div>
+    <div id="login-form">
+      <div class="fg"><label>Email</label><input type="email" id="l-email" placeholder="vous@email.com" autocomplete="email"></div>
+      <div class="fg"><label>Mot de passe</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn btn-g btn-full" id="btn-login" onclick="doLogin()"><i class="ti ti-login"></i> Se connecter</button>
+      <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--mu)"><span style="cursor:pointer;color:var(--g)" onclick="doReset()">Mot de passe oublié ?</span></p>
+    </div>
+    <div id="reg-form" style="display:none">
+      <div class="fg-row">
+        <div class="fg"><label>Prénom *</label><input type="text" id="r-fn" placeholder="Abdou" autocomplete="given-name"></div>
+        <div class="fg"><label>Nom *</label><input type="text" id="r-ln" placeholder="Koné" autocomplete="family-name"></div>
+      </div>
+      <div class="fg"><label>Email *</label><input type="email" id="r-email" placeholder="vous@email.com" autocomplete="email"></div>
+      <div class="fg"><label>Téléphone</label><input type="tel" id="r-phone" placeholder="+229 97 XX XX XX"></div>
+      <div class="fg"><label>Mot de passe * (min. 8 car.)</label><input type="password" id="r-pass" placeholder="••••••••" autocomplete="new-password"></div>
+      <button class="btn btn-g btn-full" id="btn-reg" onclick="doRegister()"><i class="ti ti-user-plus"></i> Créer mon compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ DASHBOARD MARCHAND ════════════════ -->
+<div id="dash-pg" class="pg">
+  <div class="dash-top">
+    <div>
+      <h2 id="dash-hi">Bonjour 👋</h2>
+      <p id="dash-date">Dashboard marchand</p>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-o" style="padding:8px 12px;font-size:12px" onclick="openModal('m-kyc')"><i class="ti ti-id-badge"></i> KYC</button>
+      <button class="btn btn-g" style="padding:8px 12px;font-size:12px" onclick="openModal('m-link')"><i class="ti ti-plus"></i> Nouveau lien</button>
+    </div>
+  </div>
+
+  <!-- KYC Banner -->
+  <div class="kyc-banner none" id="kyc-banner">
+    <div class="kb-left">
+      <div class="kb-icon" id="kb-icon">⚠️</div>
+      <div>
+        <div class="kb-title" id="kb-title">KYC requis</div>
+        <div class="kb-text" id="kb-text">Soumettez vos documents pour activer les retraits.</div>
+      </div>
+    </div>
+    <button class="btn btn-a" style="padding:7px 12px;font-size:12px" id="kb-btn" onclick="openModal('m-kyc')">Soumettre</button>
+  </div>
+
+  <!-- Métriques -->
+  <div class="metrics">
+    <div class="mc"><div class="mc-label">💰 Revenus</div><div class="mc-val" id="m-rev">0</div><div class="mc-unit">FCFA encaissés</div></div>
+    <div class="mc"><div class="mc-label">📊 Transactions</div><div class="mc-val" id="m-tx">0</div><div class="mc-unit">paiements</div></div>
+    <div class="mc"><div class="mc-label">🔗 Liens actifs</div><div class="mc-val" id="m-lnk">0</div><div class="mc-unit">en ligne</div></div>
+    <div class="mc"><div class="mc-label">💳 Solde</div><div class="mc-val" id="m-bal">0</div><div class="mc-unit">FCFA disponible</div></div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn on" onclick="switchTab('t-links',this)"><i class="ti ti-link"></i> Liens</button>
+    <button class="tab-btn" onclick="switchTab('t-tx',this)"><i class="ti ti-receipt"></i> Transactions</button>
+    <button class="tab-btn" onclick="switchTab('t-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
+  </div>
+
+  <!-- Liens -->
+  <div id="t-links" class="tab-pane on">
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Produit</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="tb-links"><tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Transactions -->
+  <div id="t-tx" class="tab-pane">
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Client</th><th>Montant</th><th>Méthode</th><th>Date</th><th>Statut</th></tr></thead>
+      <tbody id="tb-tx"><tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Retraits -->
+  <div id="t-wd" class="tab-pane">
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:12px">Demander un retrait</div>
+      <div class="info-box danger" id="wd-locked"><i class="ti ti-lock" style="vertical-align:-2px;margin-right:5px"></i><strong>KYC requis</strong> — Faites valider votre KYC avant de retirer.</div>
+      <div id="wd-form" style="display:none">
+        <div class="fg"><label>Montant (FCFA)</label><input type="number" id="wd-amt" placeholder="50000" min="1000"></div>
+        <div class="fg"><label>Méthode</label>
+          <select id="wd-meth">
+            <option value="mtn_bj">📱 MTN Mobile Money</option>
+            <option value="moov_bj">🔵 Moov Money</option>
+            <option value="orange_bj">🟠 Orange Money</option>
+            <option value="wave">🌊 Wave</option>
+          </select>
+        </div>
+        <div class="fg"><label>Numéro de réception</label><input type="tel" id="wd-phone" placeholder="+229 97 XX XX XX"></div>
+        <button class="btn btn-g btn-full" onclick="submitWithdrawal()"><i class="ti ti-cash"></i> Soumettre la demande</button>
+        <p style="font-size:11px;color:var(--hi);text-align:center;margin-top:8px">Traitement par l'admin sous 24h.</p>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Date</th><th>Montant</th><th>Méthode</th><th>Statut</th></tr></thead>
+      <tbody id="tb-wd"><tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Charts en bas -->
+  <div class="dash-cols" style="margin-top:12px">
+    <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Activité hebdomadaire</div><div class="bars" id="chart"></div></div>
+    <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Méthodes populaires</div>
+      <div class="mb-list">
+        <div class="mbr"><div class="mbh"><span style="color:var(--mu)">MTN Money</span><span style="font-weight:600">48%</span></div><div class="mbt"><div class="mbf" style="width:48%;background:var(--g)"></div></div></div>
+        <div class="mbr"><div class="mbh"><span style="color:var(--mu)">Orange Money</span><span style="font-weight:600">28%</span></div><div class="mbt"><div class="mbf" style="width:28%;background:var(--a)"></div></div></div>
+        <div class="mbr"><div class="mbh"><span style="color:var(--mu)">Carte</span><span style="font-weight:600">15%</span></div><div class="mbt"><div class="mbf" style="width:15%;background:#378ADD"></div></div></div>
+        <div class="mbr"><div class="mbh"><span style="color:var(--mu)">Moov Money</span><span style="font-weight:600">9%</span></div><div class="mbt"><div class="mbf" style="width:9%;background:#7F77DD"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ ADMIN ════════════════ -->
+<div id="admin-pg" class="pg">
+  <div class="admin-head">
+    <div class="admin-icon"><i class="ti ti-shield-check"></i></div>
+    <div>
+      <h2>Panel Administrateur</h2>
+      <p>adminf2kpay@gmail.com · Gestion complète F2KPay</p>
+    </div>
+  </div>
+  <div class="admin-metrics">
+    <div class="mc"><div class="mc-label">👥 Marchands</div><div class="mc-val" id="a-merch">0</div><div class="mc-unit">comptes actifs</div></div>
+    <div class="mc"><div class="mc-label">📋 KYC</div><div class="mc-val" id="a-kyc">0</div><div class="mc-unit">en attente</div></div>
+    <div class="mc"><div class="mc-label">💸 Retraits</div><div class="mc-val" id="a-wd">0</div><div class="mc-unit">à approuver</div></div>
+    <div class="mc"><div class="mc-label">📈 Volume</div><div class="mc-val" id="a-vol">0</div><div class="mc-unit">FCFA traités</div></div>
+  </div>
+  <div class="tab-nav">
+    <button class="tab-btn on" onclick="switchAdTab('at-merch',this)"><i class="ti ti-users"></i> Marchands</button>
+    <button class="tab-btn" onclick="switchAdTab('at-kyc',this)"><i class="ti ti-id-badge"></i> KYC</button>
+    <button class="tab-btn" onclick="switchAdTab('at-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
+    <button class="tab-btn" onclick="switchAdTab('at-mywd',this)"><i class="ti ti-wallet"></i> Mon retrait</button>
+  </div>
+
+  <!-- Marchands -->
+  <div id="at-merch" class="tab-pane on">
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Marchand</th><th>Email</th><th>KYC</th><th>Statut</th><th>Solde</th><th>Actions</th></tr></thead>
+      <tbody id="atb-merch"><tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- KYC -->
+  <div id="at-kyc" class="tab-pane">
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Marchand</th><th>Documents</th><th>Date</th><th>Actions</th></tr></thead>
+      <tbody id="atb-kyc"><tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Retraits marchands -->
+  <div id="at-wd" class="tab-pane">
+    <div class="tbl-wrap">
+      <table><thead><tr><th>Marchand</th><th>Montant</th><th>Numéro</th><th>Date</th><th>Actions</th></tr></thead>
+      <tbody id="atb-wd"><tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Mon retrait admin -->
+  <div id="at-mywd" class="tab-pane">
+    <div class="card" style="max-width:480px">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:8px">Retrait personnel admin</div>
+      <div class="info-box success" style="margin-bottom:14px"><i class="ti ti-info-circle" style="vertical-align:-2px;margin-right:5px"></i>Moneroo enverra directement les fonds au numéro indiqué.</div>
+      <div class="fg"><label>Montant (FCFA)</label><input type="number" id="adm-amt" placeholder="100000" min="1000"></div>
+      <div class="fg"><label>Méthode</label>
+        <select id="adm-meth">
+          <option value="mtn_bj">📱 MTN Mobile Money</option>
+          <option value="moov_bj">🔵 Moov Money</option>
+          <option value="orange_bj">🟠 Orange Money</option>
+          <option value="wave">🌊 Wave</option>
+        </select>
+      </div>
+      <div class="fg"><label>Numéro</label><input type="tel" id="adm-phone" placeholder="+229 97 XX XX XX"></div>
+      <div class="fg"><label>Note</label><input type="text" id="adm-note" placeholder="Raison du retrait"></div>
+      <button class="btn btn-g btn-full" onclick="adminWithdrawal()"><i class="ti ti-send"></i> Envoyer à Moneroo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ CHECKOUT ════════════════ -->
+<div id="checkout-pg" class="pg">
+  <div class="co-wrap">
+    <div class="co-card">
+      <div class="co-head">
+        <div class="co-merch">
+          <div class="co-logo" id="co-logo">F2K</div>
+          <div><div class="co-mn" id="co-mname">Vendeur F2KPay</div><div class="co-ms">Certifié F2KPay ✓</div></div>
+        </div>
+        <div class="co-amt"><span class="co-cur" id="co-cur">FCFA </span><span id="co-amt">0</span></div>
+        <div class="co-desc" id="co-desc">Produit</div>
+      </div>
+      <div class="co-body" id="co-body">
+        <div class="co-tabs">
+          <button class="ct on" onclick="swCo(this,'co-mob')">📱 Mobile Money</button>
+          <button class="ct" onclick="swCo(this,'co-card')">💳 Carte bancaire</button>
+        </div>
+        <div id="co-mob">
+          <div class="pm-grid">
+            <div class="pm sel" onclick="selPM(this)"><div class="pm-em">📱</div><div class="pm-nm">MTN Money</div></div>
+            <div class="pm" onclick="selPM(this)"><div class="pm-em">🟠</div><div class="pm-nm">Orange Money</div></div>
+            <div class="pm" onclick="selPM(this)"><div class="pm-em">🔵</div><div class="pm-nm">Moov Money</div></div>
+            <div class="pm" onclick="selPM(this)"><div class="pm-em">🌊</div><div class="pm-nm">Wave</div></div>
+          </div>
+          <div class="fg"><label>Nom complet</label><input type="text" id="co-name" placeholder="Prénom Nom"></div>
+          <div class="fg"><label>Email</label><input type="email" id="co-email" placeholder="vous@email.com"></div>
+          <div class="fg"><label>Numéro Mobile Money</label>
+            <div class="ph-row">
+              <div class="ph-pre">🇧🇯 +229</div>
+              <input type="tel" id="co-phone" placeholder="97 XX XX XX" maxlength="10" style="flex:1;padding:10px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:var(--fb);font-size:14px;outline:none;-webkit-appearance:none">
+            </div>
+          </div>
+        </div>
+        <div id="co-card" style="display:none">
+          <div class="fg"><label>Numéro de carte</label><input type="text" placeholder="1234 5678 9012 3456" inputmode="numeric"></div>
+          <div class="fg"><label>Nom sur la carte</label><input type="text" placeholder="JEAN DUPONT"></div>
+          <div class="fg-row">
+            <div class="fg"><label>Expiration</label><input type="text" placeholder="MM / AA"></div>
+            <div class="fg"><label>CVV</label><input type="text" placeholder="123" inputmode="numeric" maxlength="4"></div>
+          </div>
+          <div class="fg"><label>Email</label><input type="email" id="co-email-c" placeholder="vous@email.com"></div>
+        </div>
+        <button class="btn-pay" onclick="doPay()"><i class="ti ti-lock" style="font-size:14px"></i> Payer <span id="co-pay-amt">0 FCFA</span></button>
+      </div>
+      <div class="state-box" id="co-proc"><div class="spin"></div><div style="font-size:14px;font-weight:600;color:var(--gd)">Traitement...</div><div style="font-size:12px;color:var(--hi);margin-top:4px">Confirmez sur votre téléphone</div></div>
+      <div class="state-box" id="co-succ"><div class="succ-ico"><i class="ti ti-check"></i></div><div style="font-family:var(--fh);font-size:19px;font-weight:800;margin-bottom:6px">Paiement réussi !</div><div style="font-size:13px;color:var(--mu);line-height:1.6">Paiement reçu avec succès.<br>Un reçu vous a été envoyé.</div><div style="background:var(--bg);border-radius:var(--rs);padding:10px;margin-top:12px;font-size:11px;color:var(--hi);border:1px solid var(--brd)" id="co-ref">Réf: F2K-XXXXXX</div></div>
+      <div class="state-box" id="co-err"><div style="font-size:36px;margin-bottom:8px">❌</div><div style="font-family:var(--fh);font-size:17px;font-weight:800;margin-bottom:6px;color:var(--r)">Paiement échoué</div><div style="font-size:13px;color:var(--mu)">Vérifiez votre solde et réessayez.</div><button class="btn btn-g" style="margin-top:12px" onclick="resetCo()">Réessayer</button></div>
+      <div class="co-foot">Paiement sécurisé par <strong>F2KPay</strong><div class="sec-row"><i class="ti ti-shield-check" style="font-size:11px;color:var(--g)"></i> Chiffrement SSL</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ MODALS ════════════════ -->
+
+<!-- Créer un lien -->
+<div class="modal-bg" id="m-link">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('m-link')">×</button>
+    <h3>Créer un lien de paiement</h3>
+    <p class="modal-sub">La page de paiement affichera votre nom, pas la passerelle.</p>
+    <div class="fg"><label>Nom du produit / service *</label><input type="text" id="cl-name" placeholder="Formation Excel, Consultation..."></div>
+    <div class="fg-row">
+      <div class="fg"><label>Montant *</label><input type="number" id="cl-amt" placeholder="25000" min="100" inputmode="numeric"></div>
+      <div class="fg"><label>Devise</label><select id="cl-cur"><option value="XOF">XOF (FCFA)</option><option value="GHS">GHS (Cedi)</option><option value="NGN">NGN (Naira)</option><option value="EUR">EUR</option></select></div>
+    </div>
+    <div class="fg"><label>Description</label><textarea id="cl-desc" rows="2" placeholder="Décrivez votre offre..."></textarea></div>
+    <div class="fg"><label>Redirection après paiement</label><input type="url" id="cl-redir" placeholder="https://monsite.com/merci"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-o" style="flex:1" onclick="closeModal('m-link')">Annuler</button>
+      <button class="btn btn-g" style="flex:2" id="btn-cl" onclick="createLink()"><i class="ti ti-link"></i> Créer le lien</button>
+    </div>
+  </div>
+</div>
+
+<!-- KYC -->
+<div class="modal-bg" id="m-kyc">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('m-kyc')">×</button>
+    <h3>Vérification KYC</h3>
+    <p class="modal-sub">Soumettez vos documents d'identité. L'admin validera sous 48h maximum.</p>
+    <div id="kyc-status-box" style="display:none" class="info-box warn"></div>
+    <div id="kyc-form">
+      <div class="fg"><label>Type de document</label>
+        <select id="kyc-type"><option value="cni">Carte nationale d'identité</option><option value="passeport">Passeport</option><option value="permis">Permis de conduire</option></select>
+      </div>
+      <div class="fg"><label>Recto du document *</label>
+        <div class="upload-zone">
+          <input type="file" id="kyc-f" accept="image/*" onchange="prevFile(this,'pv-f')">
+          <i class="ti ti-upload"></i><p>Recto</p><small>JPG ou PNG · max 5MB</small>
+          <div class="up-prev" id="pv-f"></div>
+        </div>
+      </div>
+      <div class="fg"><label>Verso du document *</label>
+        <div class="upload-zone">
+          <input type="file" id="kyc-b" accept="image/*" onchange="prevFile(this,'pv-b')">
+          <i class="ti ti-upload"></i><p>Verso</p><small>JPG ou PNG · max 5MB</small>
+          <div class="up-prev" id="pv-b"></div>
+        </div>
+      </div>
+      <div class="fg"><label>Selfie avec le document *</label>
+        <div class="upload-zone">
+          <input type="file" id="kyc-s" accept="image/*" onchange="prevFile(this,'pv-s')">
+          <i class="ti ti-upload"></i><p>Tenez votre document visible à côté de votre visage</p><small>JPG ou PNG · max 5MB</small>
+          <div class="up-prev" id="pv-s"></div>
+        </div>
+      </div>
+      <button class="btn btn-g btn-full" id="btn-kyc" onclick="submitKYC()"><i class="ti ti-send"></i> Soumettre mes documents</button>
+    </div>
+  </div>
+</div>
+
+<!-- Vue doc admin -->
+<div class="modal-bg" id="m-doc">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('m-doc')">×</button>
+    <h3 id="doc-title">Document KYC</h3>
+    <p class="modal-sub" id="doc-sub"></p>
+    <img id="doc-img" src="" alt="Document" style="width:100%;border-radius:var(--rs);border:1px solid var(--brd)">
+  </div>
+</div>
+
+<!-- Script indépendant : gère le loader SANS Firebase -->
+<!-- S'exécute même si Firebase plante ou si les clés sont invalides -->
+<script>
+// Afficher la landing après 2.5s si Firebase n'a pas répondu
+window._loaderTimeout = setTimeout(function() {
+  var loader = document.getElementById("loader");
+  if (loader && !loader.classList.contains("hide")) {
+    loader.classList.add("hide");
+    // Afficher landing manuellement
+    var pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
+    pages.forEach(function(p) {
+      var el = document.getElementById(p);
+      if (el) { el.classList.remove("on"); el.style.display = "none"; }
+    });
+    var landing = document.getElementById("landing");
+    if (landing) { landing.classList.add("on"); landing.style.display = "block"; }
+  }
+}, 2500);
+</script>
+
+<!-- ════════════════ FIREBASE + LOGIC ════════════════ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, updateDoc, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// ╔══════════════════════════════════════╗
+// ║  FIREBASE CONFIG — À remplacer       ║
+// ╚══════════════════════════════════════╝
+const firebaseConfig = {
+  apiKey: "AIzaSyBHKolLJdXsK1THnzr79Gb8stD_GUZDfQg",
+  authDomain: "f2k-pay.firebaseapp.com",
+  projectId: "f2k-pay",
+  storageBucket: "f2k-pay.firebasestorage.app",
+  messagingSenderId: "593460943860",
+  appId: "1:593460943860:web:940b6c6b0d74d7981637a1",
+  measurementId: "G-XEQ9TF9NRH"
+};
+
+// ╔══════════════════════════════════════╗
+// ║  CLOUDINARY CONFIG — À remplacer     ║
+// ╚══════════════════════════════════════╝
+const CDN = {
+  cloud: "VOTRE_CLOUD_NAME",       // ex: "f2kpay"
+  preset: "VOTRE_UPLOAD_PRESET",   // ex: "f2kpay_kyc" (unsigned preset)
+};
+
+// ╔══════════════════════════════════════╗
+// ║  BACKEND URL — URL Render            ║
+// ╚══════════════════════════════════════╝
+const BACKEND = "https://VOTRE_BACKEND.onrender.com";
+const ADMIN_EMAIL = "adminf2kpay@gmail.com";
+
+// ── INIT ─────────────────────────────────────────────────
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let CU = null; // currentUser Firebase
+let UD = null; // userData Firestore
+let linkPreview = null;
+
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+const pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
+window.goPage = id => {
+  pages.forEach(p => { const e = document.getElementById(p); e.classList.remove("on"); e.style.display = "none"; });
+  document.querySelectorAll(".nl").forEach(n => n.classList.remove("on"));
+  const el = document.getElementById(id);
+  el.classList.add("on"); el.style.display = "block";
+  const map = {landing:"nl-home","dash-pg":"nl-dash","admin-pg":"nl-admin"};
+  if (map[id]) document.getElementById(map[id])?.classList.add("on");
+  window.scrollTo(0,0);
+};
+pages.forEach(p => { const e = document.getElementById(p); if (!e.classList.contains("on")) e.style.display="none"; });
+
+window.showToast = (msg, type="ok") => {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove("show"), 3500);
+};
+window.openModal = id => document.getElementById(id).classList.add("show");
+window.closeModal = id => document.getElementById(id).classList.remove("show");
+
+window.switchTab = (id, btn) => {
+  document.querySelectorAll("#dash-pg .tab-pane").forEach(p => p.classList.remove("on"));
+  document.querySelectorAll("#dash-pg .tab-btn").forEach(b => b.classList.remove("on"));
+  document.getElementById(id).classList.add("on"); btn.classList.add("on");
+};
+window.switchAdTab = (id, btn) => {
+  document.querySelectorAll("#admin-pg .tab-pane").forEach(p => p.classList.remove("on"));
+  document.querySelectorAll("#admin-pg .tab-btn").forEach(b => b.classList.remove("on"));
+  document.getElementById(id).classList.add("on"); btn.classList.add("on");
+};
+
+// ══════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════
+window.showAuth = mode => { goPage("auth-pg"); switchAuth(mode); };
+window.switchAuth = mode => {
+  document.getElementById("login-form").style.display = mode==="login"?"block":"none";
+  document.getElementById("reg-form").style.display = mode==="register"?"block":"none";
+  document.getElementById("at-login").classList.toggle("on", mode==="login");
+  document.getElementById("at-reg").classList.toggle("on", mode==="register");
+  document.getElementById("auth-sub").textContent = mode==="login" ? "Connectez-vous à votre dashboard" : "Créez votre compte marchand F2KPay";
+};
+
+window.doLogin = async () => {
+  const email = document.getElementById("l-email").value.trim();
+  const pass = document.getElementById("l-pass").value;
+  if (!email||!pass) return showToast("Remplissez tous les champs","err");
+  const btn = document.getElementById("btn-login");
+  btn.disabled=true; btn.textContent="Connexion...";
+  try { await signInWithEmailAndPassword(auth, email, pass); }
+  catch { showToast("Email ou mot de passe incorrect","err"); btn.disabled=false; btn.innerHTML='<i class="ti ti-login"></i> Se connecter'; }
+};
+
+window.doRegister = async () => {
+  const fn=document.getElementById("r-fn").value.trim(), ln=document.getElementById("r-ln").value.trim();
+  const email=document.getElementById("r-email").value.trim(), phone=document.getElementById("r-phone").value.trim();
+  const pass=document.getElementById("r-pass").value;
+  if (!fn||!ln||!email||!pass) return showToast("Remplissez les champs obligatoires","err");
+  if (pass.length<8) return showToast("Mot de passe : minimum 8 caractères","err");
+  const btn=document.getElementById("btn-reg");
+  btn.disabled=true; btn.textContent="Création...";
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db,"users",cred.user.uid), {
+      uid:cred.user.uid, firstName:fn, lastName:ln, email, phone,
+      role: email===ADMIN_EMAIL?"admin":"merchant",
+      status:"active", kycStatus:"none", balance:0,
+      createdAt: serverTimestamp(),
+    });
+    showToast("Compte créé !");
+  } catch(e) {
+    showToast(e.message.includes("email-already")?"Email déjà utilisé":"Erreur création","err");
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-user-plus"></i> Créer mon compte';
+  }
+};
+
+window.doReset = async () => {
+  const email=document.getElementById("l-email").value.trim();
+  if (!email) return showToast("Entrez votre email d'abord","warn");
+  try { await sendPasswordResetEmail(auth,email); showToast("Email de réinitialisation envoyé !"); }
+  catch { showToast("Email introuvable","err"); }
+};
+
+window.logout = async () => { await signOut(auth); goPage("landing"); showToast("Déconnexion réussie"); };
+
+// Observer Auth
+onAuthStateChanged(auth, async user => {
+  // Annuler le timeout de secours car Firebase a répondu
+  clearTimeout(window._loaderTimeout);
+  document.getElementById("loader").classList.add("hide");
+  if (user) {
+    CU = user;
+    const snap = await getDoc(doc(db,"users",user.uid));
+    if (!snap.exists()) { await signOut(auth); return; }
+    UD = snap.data();
+
+    // Navbar update
+    document.getElementById("nav-guest").style.display="none";
+    document.getElementById("nav-user").style.display="flex";
+    document.getElementById("nav-name").textContent=`${UD.firstName}`;
+    document.getElementById("nav-av").textContent=`${UD.firstName[0]}${UD.lastName[0]}`.toUpperCase();
+    if (UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
+
+    if (UD.role==="admin") {
+      document.getElementById("nl-admin").style.display="flex";
+      goPage("admin-pg"); loadAdmin();
+    } else {
+      if (UD.status==="disabled") { await signOut(auth); showToast("Compte désactivé. Contactez adminf2kpay@gmail.com","err"); return goPage("landing"); }
+      document.getElementById("nl-dash").style.display="flex";
+      goPage("dash-pg"); loadDash();
+    }
+  } else {
+    CU=null; UD=null;
+    document.getElementById("nav-guest").style.display="flex";
+    document.getElementById("nav-user").style.display="none";
+    document.getElementById("nl-dash").style.display="none";
+    document.getElementById("nl-admin").style.display="none";
+  }
+});
+
+// ══════════════════════════════════════════
+//  DASHBOARD MARCHAND
+// ══════════════════════════════════════════
+async function loadDash() {
+  if (!CU) return;
+  document.getElementById("dash-hi").textContent=`Bonjour, ${UD.firstName} 👋`;
+  document.getElementById("dash-date").textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  updateKYCBanner(UD.kycStatus);
+
+  // Withdrawal form
+  const wlocked=document.getElementById("wd-locked"), wform=document.getElementById("wd-form");
+  if (UD.kycStatus==="approved") { wlocked.style.display="none"; wform.style.display="block"; }
+  else { wlocked.style.display="block"; wform.style.display="none"; }
+
+  // Liens
+  const lq=query(collection(db,"paymentLinks"),where("uid","==",CU.uid),orderBy("createdAt","desc"));
+  const ls=await getDocs(lq); const links=[]; ls.forEach(d=>links.push({id:d.id,...d.data()}));
+  document.getElementById("m-lnk").textContent=links.filter(l=>l.isActive).length;
+  renderLinks(links);
+
+  // Transactions
+  const tq=query(collection(db,"transactions"),where("merchantId","==",CU.uid),orderBy("createdAt","desc"));
+  const ts=await getDocs(tq); const txs=[]; ts.forEach(d=>txs.push({id:d.id,...d.data()}));
+  renderTx(txs);
+  const rev=txs.filter(t=>t.status==="success").reduce((s,t)=>s+(t.amount||0),0);
+  document.getElementById("m-rev").textContent=rev.toLocaleString();
+  document.getElementById("m-tx").textContent=txs.length;
+
+  // Balance
+  const fs=await getDoc(doc(db,"users",CU.uid));
+  document.getElementById("m-bal").textContent=(fs.data()?.balance||0).toLocaleString();
+
+  // Retraits
+  const wq=query(collection(db,"withdrawals"),where("merchantId","==",CU.uid),orderBy("createdAt","desc"));
+  const ws=await getDocs(wq); const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
+  renderWD(wds);
+
+  renderChart();
+}
+
+function updateKYCBanner(status) {
+  const b=document.getElementById("kyc-banner");
+  const icons={none:"⚠️",pending:"⏳",approved:"✅",rejected:"❌"};
+  const titles={none:"KYC requis",pending:"KYC en examen",approved:"KYC approuvé",rejected:"KYC rejeté"};
+  const texts={none:"Soumettez vos documents pour activer les retraits.",pending:"Vos documents sont en cours de vérification (24-48h).",approved:"Votre identité est vérifiée. Retraits activés.",rejected:"Documents rejetés. Soumettez-en de nouveaux."};
+  const classes={none:"none",pending:"pending",approved:"approved",rejected:"rejected"};
+  b.className=`kyc-banner ${classes[status]||"none"}`;
+  document.getElementById("kb-icon").textContent=icons[status]||"⚠️";
+  document.getElementById("kb-title").textContent=titles[status]||"KYC requis";
+  document.getElementById("kb-text").textContent=texts[status]||"";
+  const btn=document.getElementById("kb-btn");
+  if (status==="approved") btn.style.display="none";
+  else { btn.style.display=""; btn.textContent=status==="pending"?"Voir mon KYC":"Soumettre"; }
+}
+
+function renderLinks(links) {
+  const tb=document.getElementById("tb-links");
+  if (!links.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr>`; return; }
+  tb.innerHTML=links.map(l=>`<tr>
+    <td><strong style="font-size:12px">${l.name}</strong></td>
+    <td><strong style="color:var(--gd)">${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}</strong></td>
+    <td><span class="badge ${l.isActive?'b-ok':'b-grey'}">${l.isActive?'Actif':'Inactif'}</span></td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn-xs bx-g" onclick="prevLink('${l.id}')">👁</button>
+      <button class="btn-xs bx-grey" onclick="copyLink('${l.slug}')">📋</button>
+      <button class="btn-xs bx-r" onclick="togLink('${l.id}',${l.isActive})">${l.isActive?'Off':'On'}</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderTx(txs) {
+  const tb=document.getElementById("tb-tx");
+  if (!txs.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr>`; return; }
+  tb.innerHTML=txs.map(t=>`<tr>
+    <td>${t.customerName||'—'}</td>
+    <td><strong>${(t.amount||0).toLocaleString()} ${t.currency||'XOF'}</strong></td>
+    <td>${t.method||'—'}</td>
+    <td>${t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><span class="badge ${t.status==='success'?'b-ok':t.status==='pending'?'b-wait':'b-ko'}">${t.status==='success'?'✓ Réussi':t.status==='pending'?'⏳':'✗'}</span></td>
+  </tr>`).join("");
+}
+
+function renderWD(wds) {
+  const tb=document.getElementById("tb-wd");
+  if (!wds.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr>`; return; }
+  tb.innerHTML=wds.map(w=>`<tr>
+    <td>${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><strong>${(w.amount||0).toLocaleString()} XOF</strong></td>
+    <td style="font-size:11px">${w.method||'—'}</td>
+    <td><span class="badge ${w.status==='approved'?'b-ok':w.status==='pending'?'b-wait':'b-ko'}">${w.status==='approved'?'✓ Approuvé':w.status==='pending'?'⏳ Attente':'✗ Rejeté'}</span></td>
+  </tr>`).join("");
+}
+
+function renderChart() {
+  const days=["L","M","M","J","V","S","D"],vals=[42,68,38,82,57,95,74],mx=Math.max(...vals);
+  const ch=document.getElementById("chart");
+  if(ch) ch.innerHTML=days.map((d,i)=>`<div class="bg2"><div class="bb${i===5?" hi":""}" style="height:${Math.round((vals[i]/mx)*64)}px"></div><div class="bbl">${d}</div></div>`).join("");
+}
+
+// Actions marchands
+window.prevLink = async id => {
+  const s=await getDoc(doc(db,"paymentLinks",id)); if(!s.exists()) return;
+  const l=s.data(); linkPreview={id,...l};
+  document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
+  document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
+  document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
+  document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
+  document.getElementById("co-desc").textContent=l.description||l.name;
+  document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
+  goPage("checkout-pg");
+};
+window.copyLink = slug => { navigator.clipboard.writeText(`${location.origin}?pay=${slug}`).catch(()=>{}); showToast("Lien copié !"); };
+window.togLink = async (id,active) => { await updateDoc(doc(db,"paymentLinks",id),{isActive:!active}); showToast(!active?"Activé":"Désactivé"); loadDash(); };
+
+window.createLink = async () => {
+  if (!CU) return;
+  const name=document.getElementById("cl-name").value.trim();
+  const amt=document.getElementById("cl-amt").value;
+  const cur=document.getElementById("cl-cur").value;
+  const desc=document.getElementById("cl-desc").value.trim();
+  const redir=document.getElementById("cl-redir").value.trim();
+  if (!name||!amt) return showToast("Nom et montant requis","err");
+  const btn=document.getElementById("btn-cl"); btn.disabled=true; btn.textContent="Création...";
+  try {
+    const slug=name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
+    await addDoc(collection(db,"paymentLinks"),{
+      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`,
+      name, amount:Number(amt), currency:cur, description:desc, redirectUrl:redir,
+      slug, isActive:true, paymentCount:0,
+      paymentUrl:`${location.origin}?pay=${slug}`,
+      createdAt:serverTimestamp(),
+    });
+    closeModal("m-link");
+    showToast("Lien créé !");
+    ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(id=>document.getElementById(id).value="");
+    loadDash();
+  } catch(e) { showToast("Erreur : "+e.message,"err"); }
+  btn.disabled=false; btn.innerHTML='<i class="ti ti-link"></i> Créer le lien';
+};
+
+window.submitWithdrawal = async () => {
+  if (!CU||UD?.kycStatus!=="approved") return showToast("KYC requis","err");
+  const amt=Number(document.getElementById("wd-amt").value);
+  const meth=document.getElementById("wd-meth").value;
+  const phone=document.getElementById("wd-phone").value.trim();
+  if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
+  if (!phone) return showToast("Entrez un numéro","err");
+  const fs=await getDoc(doc(db,"users",CU.uid));
+  const bal=fs.data()?.balance||0;
+  if (amt>bal) return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`, "err");
+  await addDoc(collection(db,"withdrawals"),{
+    merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
+    amount:amt, method:meth, phone, status:"pending", type:"merchant", createdAt:serverTimestamp(),
+  });
+  showToast("Demande soumise — l'admin validera sous 24h.");
+  document.getElementById("wd-amt").value=""; document.getElementById("wd-phone").value="";
+  loadDash();
+};
+
+// ══════════════════════════════════════════
+//  KYC UPLOAD (Cloudinary)
+// ══════════════════════════════════════════
+window.prevFile = (input, prevId) => {
+  const p=document.getElementById(prevId); p.innerHTML="";
+  if (input.files?.[0]) { const img=document.createElement("img"); img.className="up-thumb"; img.src=URL.createObjectURL(input.files[0]); p.appendChild(img); }
+};
+
+window.openModal = id => {
+  if (id==="m-kyc") setupKYCModal();
+  document.getElementById(id).classList.add("show");
+};
+
+async function setupKYCModal() {
+  if (!CU) return;
+  const snap=await getDoc(doc(db,"kyc",CU.uid));
+  const kyc=snap.exists()?snap.data():null;
+  const sb=document.getElementById("kyc-status-box"), kf=document.getElementById("kyc-form");
+  if (kyc && kyc.status!=="rejected") {
+    sb.style.display="block";
+    sb.className=`info-box ${kyc.status==="approved"?"success":"warn"}`;
+    sb.innerHTML=`<i class="ti ti-${kyc.status==="approved"?'check':"clock"}" style="vertical-align:-2px;margin-right:5px"></i>${kyc.status==="approved"?"✅ KYC approuvé par l'administrateur.":"⏳ Documents en cours de vérification (24-48h)."}`;
+    kf.style.display=kyc.status==="approved"?"none":"block";
+  } else { sb.style.display="none"; kf.style.display="block"; }
+}
+
+async function uploadCDN(file) {
+  const fd=new FormData();
+  fd.append("file",file); fd.append("upload_preset",CDN.preset); fd.append("folder","f2kpay-kyc");
+  const res=await fetch(`https://api.cloudinary.com/v1_1/${CDN.cloud}/image/upload`,{method:"POST",body:fd});
+  const d=await res.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.secure_url;
+}
+
+window.submitKYC = async () => {
+  const f=document.getElementById("kyc-f").files[0], b=document.getElementById("kyc-b").files[0], s=document.getElementById("kyc-s").files[0];
+  const type=document.getElementById("kyc-type").value;
+  if (!f||!b||!s) return showToast("Uploadez les 3 documents requis","err");
+  const btn=document.getElementById("btn-kyc"); btn.disabled=true; btn.textContent="Upload en cours...";
+  try {
+    const [fu,bu,su]=await Promise.all([uploadCDN(f),uploadCDN(b),uploadCDN(s)]);
+    await setDoc(doc(db,"kyc",CU.uid),{
+      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
+      docType:type, frontUrl:fu, backUrl:bu, selfieUrl:su,
+      status:"pending", submittedAt:serverTimestamp(),
+    });
+    await updateDoc(doc(db,"users",CU.uid),{kycStatus:"pending"});
+    UD.kycStatus="pending";
+    updateKYCBanner("pending");
+    document.getElementById("av-dot").style.display="block";
+    closeModal("m-kyc");
+    showToast("Documents soumis ! Réponse sous 48h.");
+  } catch(e) { showToast("Erreur upload : "+e.message,"err"); }
+  btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Soumettre mes documents';
+};
+
+// ══════════════════════════════════════════
+//  ADMIN
+// ══════════════════════════════════════════
+async function loadAdmin() {
+  const mq=query(collection(db,"users"),where("role","==","merchant"));
+  const ms=await getDocs(mq); const merch=[]; ms.forEach(d=>merch.push({id:d.id,...d.data()}));
+  document.getElementById("a-merch").textContent=merch.filter(m=>m.status==="active").length;
+  renderAdminMerch(merch);
+
+  const kq=query(collection(db,"kyc"),where("status","==","pending"));
+  const ks=await getDocs(kq); const kycs=[]; ks.forEach(d=>kycs.push({id:d.id,...d.data()}));
+  document.getElementById("a-kyc").textContent=kycs.length;
+  renderAdminKYC(kycs);
+
+  const wq=query(collection(db,"withdrawals"),where("status","==","pending"),where("type","==","merchant"));
+  const ws=await getDocs(wq); const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
+  document.getElementById("a-wd").textContent=wds.length;
+  renderAdminWD(wds);
+}
+
+function renderAdminMerch(list) {
+  const tb=document.getElementById("atb-merch");
+  if (!list.length) { tb.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr>`; return; }
+  tb.innerHTML=list.map(m=>`<tr>
+    <td><div class="td-user"><div class="u-av">${(m.firstName||'?')[0]}${(m.lastName||'?')[0]}</div><div><div style="font-weight:500;font-size:12px">${m.firstName} ${m.lastName}</div><div style="font-size:10px;color:var(--hi)">${m.phone||''}</div></div></div></td>
+    <td style="font-size:11px"><a href="mailto:${m.email}" style="color:var(--g)">${m.email}</a></td>
+    <td><span class="badge ${m.kycStatus==='approved'?'b-ok':m.kycStatus==='pending'?'b-wait':m.kycStatus==='rejected'?'b-ko':'b-grey'}">${m.kycStatus==='approved'?'✓ OK':m.kycStatus==='pending'?'⏳':m.kycStatus==='rejected'?'✗ Rejeté':'—'}</span></td>
+    <td><span class="badge ${m.status==='active'?'b-ok':'b-ko'}">${m.status==='active'?'Actif':'Désactivé'}</span></td>
+    <td style="font-size:11px;font-weight:600">${(m.balance||0).toLocaleString()} XOF</td>
+    <td><div class="td-actions">
+      <button class="btn-xs ${m.status==='active'?'bx-r':'bx-g'}" onclick="togMerch('${m.id}','${m.status}')">${m.status==='active'?'Désact.':'Activer'}</button>
+      <button class="btn-xs bx-r" onclick="delMerch('${m.id}','${m.firstName}')">Suppr.</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderAdminKYC(kycs) {
+  const tb=document.getElementById("atb-kyc");
+  if (!kycs.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr>`; return; }
+  tb.innerHTML=kycs.map(k=>`<tr>
+    <td><div style="font-size:12px;font-weight:500">${k.merchantName}</div><div style="font-size:10px;color:var(--hi)">${k.merchantEmail}</div></td>
+    <td><div style="display:flex;gap:5px">
+      <img src="${k.frontUrl}" class="kyc-thumb" alt="Recto" onclick="viewDoc('${k.frontUrl}','Recto · ${k.merchantName}','Pièce : ${k.docType}')">
+      <img src="${k.backUrl}" class="kyc-thumb" alt="Verso" onclick="viewDoc('${k.backUrl}','Verso · ${k.merchantName}','Pièce : ${k.docType}')">
+      <img src="${k.selfieUrl}" class="kyc-thumb" alt="Selfie" onclick="viewDoc('${k.selfieUrl}','Selfie · ${k.merchantName}','Selfie avec document')">
+    </div></td>
+    <td style="font-size:11px">${k.submittedAt?.toDate?k.submittedAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><div class="td-actions">
+      <button class="btn-xs bx-g" onclick="apprKYC('${k.uid}')">✅ Approuver</button>
+      <button class="btn-xs bx-r" onclick="rejKYC('${k.uid}')">❌ Rejeter</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderAdminWD(wds) {
+  const tb=document.getElementById("atb-wd");
+  if (!wds.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr>`; return; }
+  tb.innerHTML=wds.map(w=>`<tr>
+    <td><div style="font-size:12px;font-weight:500">${w.merchantName}</div><div style="font-size:10px;color:var(--hi)">${w.merchantEmail}</div></td>
+    <td><strong style="color:var(--gd)">${(w.amount||0).toLocaleString()} XOF</strong></td>
+    <td style="font-size:11px"><code>${w.phone||'—'}</code></td>
+    <td style="font-size:11px">${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><div class="td-actions">
+      <button class="btn-xs bx-g" onclick="apprWD('${w.id}','${w.merchantId}',${w.amount})">✅ Approuver</button>
+      <button class="btn-xs bx-r" onclick="rejWD('${w.id}')">❌ Rejeter</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+window.togMerch = async (uid,status) => { await updateDoc(doc(db,"users",uid),{status:status==="active"?"disabled":"active"}); showToast(status==="active"?"Compte désactivé":"Compte activé"); loadAdmin(); };
+window.delMerch = async (uid,name) => { if(!confirm(`Supprimer le compte de ${name} ?`)) return; await updateDoc(doc(db,"users",uid),{status:"deleted",deletedAt:serverTimestamp()}); showToast(`${name} supprimé`); loadAdmin(); };
+window.viewDoc = (url,title,sub) => { document.getElementById("doc-img").src=url; document.getElementById("doc-title").textContent=title; document.getElementById("doc-sub").textContent=sub; document.getElementById("m-doc").classList.add("show"); };
+window.apprKYC = async uid => { await updateDoc(doc(db,"kyc",uid),{status:"approved",reviewedAt:serverTimestamp()}); await updateDoc(doc(db,"users",uid),{kycStatus:"approved"}); showToast("KYC approuvé ✅"); loadAdmin(); };
+window.rejKYC = async uid => { const r=prompt("Raison du rejet :"); if(r===null) return; await updateDoc(doc(db,"kyc",uid),{status:"rejected",rejectionReason:r,reviewedAt:serverTimestamp()}); await updateDoc(doc(db,"users",uid),{kycStatus:"rejected"}); showToast("KYC rejeté"); loadAdmin(); };
+window.apprWD = async (wid,mid,amt) => {
+  if (!confirm(`Approuver ${amt.toLocaleString()} XOF ? Moneroo enverra les fonds.`)) return;
+  // await fetch(`${BACKEND}/api/payout`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({withdrawalId:wid,merchantId:mid,amount:amt})});
+  await updateDoc(doc(db,"withdrawals",wid),{status:"approved",approvedAt:serverTimestamp()});
+  const fs=await getDoc(doc(db,"users",mid)); const bal=fs.data()?.balance||0;
+  await updateDoc(doc(db,"users",mid),{balance:Math.max(0,bal-amt)});
+  showToast("Retrait approuvé ✅ Moneroo va envoyer les fonds."); loadAdmin();
+};
+window.rejWD = async wid => { const r=prompt("Raison du rejet :"); if(r===null) return; await updateDoc(doc(db,"withdrawals",wid),{status:"rejected",rejectionReason:r,rejectedAt:serverTimestamp()}); showToast("Rejeté"); loadAdmin(); };
+
+window.adminWithdrawal = async () => {
+  const amt=Number(document.getElementById("adm-amt").value), meth=document.getElementById("adm-meth").value;
+  const phone=document.getElementById("adm-phone").value.trim(), note=document.getElementById("adm-note").value.trim();
+  if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
+  if (!phone) return showToast("Entrez un numéro","err");
+  // await fetch(`${BACKEND}/api/admin-payout`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amt,method:meth,phone,note})});
+  await addDoc(collection(db,"withdrawals"),{merchantId:CU.uid,merchantName:"ADMIN F2KPay",merchantEmail:ADMIN_EMAIL,amount:amt,method:meth,phone,note,status:"approved",type:"admin",createdAt:serverTimestamp()});
+  showToast("Demande de retrait admin envoyée à Moneroo ✅");
+  document.getElementById("adm-amt").value=""; document.getElementById("adm-phone").value="";
+};
+
+// ══════════════════════════════════════════
+//  CHECKOUT
+// ══════════════════════════════════════════
+window.swCo = (btn,tab) => { document.querySelectorAll(".ct").forEach(t=>t.classList.remove("on")); btn.classList.add("on"); document.getElementById("co-mob").style.display=tab==="co-mob"?"block":"none"; document.getElementById("co-card").style.display=tab==="co-card"?"block":"none"; };
+window.selPM = el => { document.querySelectorAll(".pm").forEach(m=>m.classList.remove("sel")); el.classList.add("sel"); };
+window.doPay = async () => {
+  const name=document.getElementById("co-name").value.trim(), email=document.getElementById("co-email").value.trim();
+  if (!name||!email) return showToast("Remplissez nom et email","err");
+  document.getElementById("co-body").style.display="none";
+  document.getElementById("co-proc").style.display="block";
+  try {
+    if (linkPreview) {
+      // Appel réel : const r=await fetch(`${BACKEND}/api/payments/initiate`,{...}); window.location.href=r.data.checkoutUrl;
+      await new Promise(r=>setTimeout(r,2600));
+      const ref=`F2K-${Date.now().toString(36).toUpperCase()}`;
+      await addDoc(collection(db,"transactions"),{merchantId:linkPreview.uid,linkId:linkPreview.id,customerName:name,customerEmail:email,amount:linkPreview.amount,currency:linkPreview.currency||"XOF",method:"Mobile Money",status:"success",reference:ref,createdAt:serverTimestamp()});
+      const fs=await getDoc(doc(db,"users",linkPreview.uid)); const bal=fs.data()?.balance||0;
+      await updateDoc(doc(db,"users",linkPreview.uid),{balance:bal+(linkPreview.amount*0.98)});
+    }
+    document.getElementById("co-proc").style.display="none";
+    document.getElementById("co-succ").style.display="block";
+    document.getElementById("co-ref").textContent=`Réf: F2K-${Date.now().toString(36).toUpperCase()} · Sécurisé par F2KPay`;
+  } catch { document.getElementById("co-proc").style.display="none"; document.getElementById("co-err").style.display="block"; }
+};
+window.resetCo = () => { document.getElementById("co-body").style.display="block"; ["co-proc","co-succ","co-err"].forEach(id=>document.getElementById(id).style.display="none"); };
+
+// ══════════════════════════════════════════
+//  ROUTING (liens publics ?pay=slug)
+// ══════════════════════════════════════════
+(async () => {
+  const slug=new URLSearchParams(location.search).get("pay");
+  if (!slug) return;
+  const q=query(collection(db,"paymentLinks"),where("slug","==",slug),where("isActive","==",true));
+  const s=await getDocs(q);
+  if (s.empty) { showToast("Lien introuvable ou désactivé","err"); return; }
+  const l=s.docs[0].data(); linkPreview={id:s.docs[0].id,...l};
+  document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
+  document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
+  document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
+  document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
+  document.getElementById("co-desc").textContent=l.description||l.name;
+  document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
+  document.querySelector("nav").style.display="none";
+  goPage("checkout-pg");
+})();
+
+</script>
+</body>
+</html>
