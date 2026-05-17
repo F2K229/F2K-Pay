@@ -665,6 +665,27 @@ var auth = firebase.auth();
 var db   = firebase.firestore();
 var FS   = firebase.firestore.FieldValue;
 
+// Persistance hors ligne — fonctionne même avec connexion instable
+db.enablePersistence({synchronizeTabs:true}).catch(function(err){
+  if (err.code === "failed-precondition") {
+    // Plusieurs onglets ouverts — pas grave
+  } else if (err.code === "unimplemented") {
+    // Navigateur ne supporte pas — pas grave
+  }
+});
+
+// Forcer Firestore à utiliser le réseau même sur connexion instable
+db.settings({ experimentalForceLongPolling: true, merge: true });
+
+// Activer le cache hors ligne
+db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+  console.log("Persistance non disponible :", err.code);
+});
+
+// Forcer Firestore à toujours aller sur le réseau (pas de cache)
+db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+db.enableNetwork(); // S'assurer que le réseau est actif
+
 var CU = null; // currentUser Firebase Auth
 var UD = null; // userData Firestore
 var LP = null; // linkPreview pour checkout
@@ -790,7 +811,10 @@ auth.onAuthStateChanged(function(user) {
         }
       })
       .catch(function(e) {
-        showToast("Erreur : " + e.message, "err");
+        var msg = "Erreur de connexion. Vérifiez votre réseau et réessayez.";
+        if (e.code === "permission-denied") msg = "Permission refusée. Vérifiez les règles Firestore.";
+        if (e.message && e.message.includes("offline")) msg = "Connexion instable. Réessayez dans quelques secondes.";
+        showToast(msg, "err");
         auth.signOut(); goPage("auth-pg");
       });
   } else {
@@ -886,7 +910,7 @@ function loadDash() {
   else { wlocked.style.display="block"; wform.style.display="none"; }
 
   // Liens
-  db.collection("paymentLinks").where("uid","==",CU.uid).orderBy("createdAt","desc").get()
+  db.collection("paymentLinks").where("uid","==",CU.uid).get()
     .then(function(ls) {
       var links = []; ls.forEach(function(d){ links.push({id:d.id,__data:d.data()}); });
       document.getElementById("m-lnk").textContent = links.filter(function(l){ return l.__data.isActive; }).length;
@@ -894,7 +918,7 @@ function loadDash() {
     }).catch(function(){});
 
   // Transactions
-  db.collection("transactions").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+  db.collection("transactions").where("merchantId","==",CU.uid).get()
     .then(function(ts) {
       var txs = []; ts.forEach(function(d){ txs.push({id:d.id,__data:d.data()}); });
       renderTx(txs);
@@ -909,7 +933,7 @@ function loadDash() {
     .catch(function(){});
 
   // Retraits
-  db.collection("withdrawals").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+  db.collection("withdrawals").where("merchantId","==",CU.uid).get()
     .then(function(ws) {
       var wds=[]; ws.forEach(function(d){ wds.push({id:d.id,__data:d.data()}); });
       renderWD(wds);
@@ -1023,7 +1047,14 @@ function createLink() {
     ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(function(id){ document.getElementById(id).value=""; });
     loadDash();
   })
-  .catch(function(e){ showToast("Erreur : "+e.message,"err"); })
+  .catch(function(e){
+    console.error("createLink error:", e.code, e.message);
+    var msg = "Erreur création lien";
+    if (e.code === "permission-denied") msg = "Permission refusée — vérifiez les règles Firestore";
+    else if (e.message && e.message.includes("offline")) msg = "Connexion instable — réessayez";
+    else msg = "Erreur : " + e.message;
+    showToast(msg,"err");
+  })
   .finally(function(){ setBtnLoad("btn-cl",false,'<i class="ti ti-link"></i> Créer le lien'); });
 }
 
@@ -1136,7 +1167,7 @@ function loadAdmin() {
       renderAdmKYC(list);
     });
   // Retraits
-  db.collection("withdrawals").where("status","==","pending").where("type","==","merchant").get()
+  db.collection("withdrawals").where("status","==","pending").get()
     .then(function(ws){
       var list=[]; ws.forEach(function(d){ list.push({id:d.id,d:d.data()}); });
       document.getElementById("a-wd").textContent = list.length;
