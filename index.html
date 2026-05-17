@@ -1073,9 +1073,20 @@ window.doLogin = async () => {
   const pass = document.getElementById("l-pass").value;
   if (!email||!pass) return showToast("Remplissez tous les champs","err");
   const btn = document.getElementById("btn-login");
-  btn.disabled=true; btn.textContent="Connexion...";
-  try { await signInWithEmailAndPassword(auth, email, pass); }
-  catch { showToast("Email ou mot de passe incorrect","err"); btn.disabled=false; btn.innerHTML='<i class="ti ti-login"></i> Se connecter'; }
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Connexion...';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    // onAuthStateChanged prend le relais automatiquement
+  } catch(e) {
+    let msg = "Email ou mot de passe incorrect";
+    if (e.code === "auth/too-many-requests") msg = "Trop de tentatives. Réessayez dans quelques minutes.";
+    if (e.code === "auth/network-request-failed") msg = "Erreur réseau. Vérifiez votre connexion.";
+    if (e.code === "auth/user-not-found") msg = "Aucun compte avec cet email.";
+    if (e.code === "auth/wrong-password") msg = "Mot de passe incorrect.";
+    showToast(msg,"err");
+    btn.disabled=false;
+    btn.innerHTML='<i class="ti ti-login"></i> Se connecter';
+  }
 };
 
 window.doRegister = async () => {
@@ -1264,14 +1275,17 @@ window.copyLink = slug => { navigator.clipboard.writeText(`${location.origin}?pa
 window.togLink = async (id,active) => { await updateDoc(doc(db,"paymentLinks",id),{isActive:!active}); showToast(!active?"Activé":"Désactivé"); loadDash(); };
 
 window.createLink = async () => {
-  if (!CU) return;
+  if (!CU) return showToast("Vous devez être connecté","err");
+  if (!UD) return showToast("Rechargez la page et reconnectez-vous","err");
   const name=document.getElementById("cl-name").value.trim();
   const amt=document.getElementById("cl-amt").value;
   const cur=document.getElementById("cl-cur").value;
   const desc=document.getElementById("cl-desc").value.trim();
   const redir=document.getElementById("cl-redir").value.trim();
   if (!name||!amt) return showToast("Nom et montant requis","err");
-  const btn=document.getElementById("btn-cl"); btn.disabled=true; btn.textContent="Création...";
+  if (Number(amt) < 100) return showToast("Montant minimum : 100 FCFA","err");
+  const btn=document.getElementById("btn-cl");
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Création...';
   try {
     const slug=name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
     await addDoc(collection(db,"paymentLinks"),{
@@ -1282,30 +1296,47 @@ window.createLink = async () => {
       createdAt:serverTimestamp(),
     });
     closeModal("m-link");
-    showToast("Lien créé !");
+    showToast("Lien créé avec succès !");
     ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(id=>document.getElementById(id).value="");
     loadDash();
-  } catch(e) { showToast("Erreur : "+e.message,"err"); }
+  } catch(e) {
+    console.error("Erreur createLink:",e);
+    if (e.code==="permission-denied") showToast("Permission refusée — vérifiez les règles Firestore","err");
+    else showToast("Erreur : "+e.message,"err");
+  }
   btn.disabled=false; btn.innerHTML='<i class="ti ti-link"></i> Créer le lien';
 };
 
 window.submitWithdrawal = async () => {
-  if (!CU||UD?.kycStatus!=="approved") return showToast("KYC requis","err");
+  if (!CU||UD?.kycStatus!=="approved") return showToast("KYC requis pour retirer","err");
   const amt=Number(document.getElementById("wd-amt").value);
   const meth=document.getElementById("wd-meth").value;
   const phone=document.getElementById("wd-phone").value.trim();
   if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
-  if (!phone) return showToast("Entrez un numéro","err");
-  const fs=await getDoc(doc(db,"users",CU.uid));
-  const bal=fs.data()?.balance||0;
-  if (amt>bal) return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`, "err");
-  await addDoc(collection(db,"withdrawals"),{
-    merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
-    amount:amt, method:meth, phone, status:"pending", type:"merchant", createdAt:serverTimestamp(),
-  });
-  showToast("Demande soumise — l'admin validera sous 24h.");
-  document.getElementById("wd-amt").value=""; document.getElementById("wd-phone").value="";
-  loadDash();
+  if (!phone) return showToast("Entrez un numéro de réception","err");
+  const btn=document.querySelector("#t-wd .btn-g");
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Envoi...';}
+  try {
+    const fs=await getDoc(doc(db,"users",CU.uid));
+    const bal=fs.data()?.balance||0;
+    if (amt>bal) {
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-cash"></i> Soumettre la demande';}
+      return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`, "err");
+    }
+    await addDoc(collection(db,"withdrawals"),{
+      merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
+      amount:amt, method:meth, phone, status:"pending", type:"merchant", createdAt:serverTimestamp(),
+    });
+    showToast("Demande soumise — l'admin validera sous 24h.");
+    document.getElementById("wd-amt").value="";
+    document.getElementById("wd-phone").value="";
+    loadDash();
+  } catch(e) {
+    console.error("Erreur withdrawal:",e);
+    if (e.code==="permission-denied") showToast("Permission refusée — contactez le support","err");
+    else showToast("Erreur : "+e.message,"err");
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-cash"></i> Soumettre la demande';}
 };
 
 // ══════════════════════════════════════════
