@@ -320,6 +320,9 @@ tr:hover td{background:#f9fcfa}
 .up-prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .up-thumb{width:70px;height:52px;border-radius:5px;object-fit:cover;border:1px solid var(--brd)}
 
+.code-pane{display:none}.code-pane.on{display:block}
+pre{white-space:pre-wrap;word-break:break-all}
+
 /* Scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
@@ -440,7 +443,7 @@ tr:hover td{background:#f9fcfa}
   </div>
 
   <div class="landing-footer">
-    © 2025 F2KPay · Support : <a href="mailto:adminf2kpay@gmail.com">adminf2kpay@gmail.com</a>
+    © 2025 F2KPay · Support : <a href="mailto:f2kmultiservice@gmail.com">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708" style="color:#86e8c4">WhatsApp</a>
   </div>
 </div>
 
@@ -509,6 +512,7 @@ tr:hover td{background:#f9fcfa}
     <button class="tab-btn on" onclick="switchTab('t-links',this)"><i class="ti ti-link"></i> Liens</button>
     <button class="tab-btn" onclick="switchTab('t-tx',this)"><i class="ti ti-receipt"></i> Transactions</button>
     <button class="tab-btn" onclick="switchTab('t-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
+    <button class="tab-btn" onclick="switchTab('t-api',this)"><i class="ti ti-code"></i> API</button>
   </div>
 
   <!-- Liens -->
@@ -553,7 +557,205 @@ tr:hover td{background:#f9fcfa}
     </div>
   </div>
 
-  <!-- Charts en bas -->
+  <!-- ═══ API KEYS ═══ -->
+  <div id="t-api" class="tab-pane">
+
+    <!-- Clés API -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px">🔑 Vos clés API</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:16px">Utilisez ces clés pour intégrer F2KPay à votre application. Ne partagez jamais votre clé secrète.</div>
+
+      <!-- Clé publique -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px">Clé publique (pk_live)</label>
+        <div style="display:flex;gap:7px;align-items:center">
+          <div style="flex:1;background:var(--bg);border:1px solid var(--brd);border-radius:var(--rs);padding:10px 12px;font-family:monospace;font-size:12px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="api-pk">Générez vos clés ci-dessous</div>
+          <button class="btn-xs bx-grey" onclick="copyKey('api-pk')" title="Copier"><i class="ti ti-copy" style="font-size:13px"></i></button>
+        </div>
+        <div style="font-size:11px;color:var(--hi);margin-top:4px">Utilisable côté frontend / application mobile</div>
+      </div>
+
+      <!-- Clé secrète -->
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px">Clé secrète (sk_live)</label>
+        <div style="display:flex;gap:7px;align-items:center">
+          <div style="flex:1;background:var(--bg);border:1px solid var(--brd);border-radius:var(--rs);padding:10px 12px;font-family:monospace;font-size:12px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="api-sk">••••••••••••••••••••••••</div>
+          <button class="btn-xs bx-grey" id="btn-toggle-sk" onclick="toggleSK()" title="Afficher/Masquer"><i class="ti ti-eye" style="font-size:13px"></i></button>
+          <button class="btn-xs bx-grey" onclick="copyKey('api-sk-real')" title="Copier"><i class="ti ti-copy" style="font-size:13px"></i></button>
+        </div>
+        <div id="api-sk-real" style="display:none"></div>
+        <div style="font-size:11px;color:var(--r);margin-top:4px"><i class="ti ti-alert-triangle" style="font-size:11px;vertical-align:-1px"></i> Serveur uniquement — ne jamais exposer côté client</div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-g" style="padding:8px 14px;font-size:12px" id="btn-gen-keys" onclick="generateAPIKeys()"><i class="ti ti-refresh"></i> <span id="gen-keys-txt">Générer mes clés API</span></button>
+        <button class="btn btn-r" style="padding:8px 14px;font-size:12px" onclick="revokeAPIKeys()"><i class="ti ti-trash"></i> Révoquer</button>
+      </div>
+    </div>
+
+    <!-- Webhook -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px">🔔 Webhook</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:14px">F2KPay appellera cette URL après chaque paiement réussi ou échoué.</div>
+      <div class="fg">
+        <label>URL de votre webhook</label>
+        <input type="url" id="webhook-url" placeholder="https://votre-serveur.com/webhook/f2kpay">
+      </div>
+      <div class="fg">
+        <label>Événements à notifier</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-success" checked> Paiement réussi (payment.success)</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-failed" checked> Paiement échoué (payment.failed)</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-refund"> Remboursement (payment.refunded)</label>
+        </div>
+      </div>
+      <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="saveWebhook()"><i class="ti ti-device-floppy"></i> Enregistrer le webhook</button>
+    </div>
+
+    <!-- Documentation -->
+    <div class="card">
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:14px">📖 Intégrer F2KPay dans votre app</div>
+
+      <!-- Tabs code -->
+      <div style="display:flex;gap:2px;border-bottom:1px solid var(--brd);margin-bottom:14px;overflow-x:auto">
+        <button class="tab-btn on" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-js',this)">JavaScript</button>
+        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-php',this)">PHP</button>
+        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-python',this)">Python</button>
+        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-curl',this)">cURL</button>
+      </div>
+
+      <!-- JavaScript -->
+      <div id="code-js" class="code-pane on">
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code id="code-js-content">// Initier un paiement F2KPay
+const response = await fetch('https://f2kpay-backend.onrender.com/api/payments/initiate', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-F2K-Public-Key': 'pk_live_VOTRE_CLE_PUBLIQUE'
+  },
+  body: JSON.stringify({
+    slug: 'votre-lien-slug',
+    customer: {
+      firstName: 'Jean',
+      lastName: 'Dupont',
+      email: 'jean@email.com',
+      phone: '22997000000'
+    }
+  })
+});
+
+const data = await response.json();
+if (data.success) {
+  // Rediriger vers la page de paiement
+  window.location.href = data.data.checkoutUrl;
+}</code></pre>
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin:12px 0 8px">▶ Envoyer des fonds à un client (payout)</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>// Envoyer des fonds via F2KPay
+const response = await fetch('https://f2kpay-backend.onrender.com/api/payout', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-F2K-Secret-Key': 'sk_live_VOTRE_CLE_SECRETE' // côté serveur uniquement
+  },
+  body: JSON.stringify({
+    amount: 5000,
+    currency: 'XOF',
+    method: 'mtn_bj',
+    phone: '22997000000',
+    description: 'Remboursement commande #123'
+  })
+});
+const data = await response.json();</code></pre>
+      </div>
+
+      <!-- PHP -->
+      <div id="code-php" class="code-pane">
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>&lt;?php
+$curl = curl_init();
+curl_setopt_array($curl, [
+  CURLOPT_URL => 'https://f2kpay-backend.onrender.com/api/payments/initiate',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_POST => true,
+  CURLOPT_HTTPHEADER => [
+    'Content-Type: application/json',
+    'X-F2K-Public-Key: pk_live_VOTRE_CLE_PUBLIQUE'
+  ],
+  CURLOPT_POSTFIELDS => json_encode([
+    'slug' => 'votre-lien-slug',
+    'customer' => [
+      'firstName' => 'Jean',
+      'lastName'  => 'Dupont',
+      'email'     => 'jean@email.com',
+      'phone'     => '22997000000'
+    ]
+  ])
+]);
+$response = json_decode(curl_exec($curl), true);
+if ($response['success']) {
+  header('Location: ' . $response['data']['checkoutUrl']);
+}
+?&gt;</code></pre>
+      </div>
+
+      <!-- Python -->
+      <div id="code-python" class="code-pane">
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>import requests
+
+response = requests.post(
+  'https://f2kpay-backend.onrender.com/api/payments/initiate',
+  headers={
+    'Content-Type': 'application/json',
+    'X-F2K-Public-Key': 'pk_live_VOTRE_CLE_PUBLIQUE'
+  },
+  json={
+    'slug': 'votre-lien-slug',
+    'customer': {
+      'firstName': 'Jean',
+      'lastName': 'Dupont',
+      'email': 'jean@email.com',
+      'phone': '22997000000'
+    }
+  }
+)
+data = response.json()
+if data['success']:
+    checkout_url = data['data']['checkoutUrl']
+    # Rediriger l'utilisateur vers checkout_url</code></pre>
+      </div>
+
+      <!-- cURL -->
+      <div id="code-curl" class="code-pane">
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>curl -X POST https://f2kpay-backend.onrender.com/api/payments/initiate \
+  -H "Content-Type: application/json" \
+  -H "X-F2K-Public-Key: pk_live_VOTRE_CLE_PUBLIQUE" \
+  -d '{
+    "slug": "votre-lien-slug",
+    "customer": {
+      "firstName": "Jean",
+      "lastName": "Dupont",
+      "email": "jean@email.com",
+      "phone": "22997000000"
+    }
+  }'</code></pre>
+      </div>
+
+      <!-- Réponse type -->
+      <div style="margin-top:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Réponse type</div>
+        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>{
+  "success": true,
+  "data": {
+    "checkoutUrl": "https://checkout.moneroo.io/xxx",
+    "transactionId": "F2K-abc123"
+  }
+}</code></pre>
+      </div>
+    </div>
+  </div>
   <div class="dash-cols" style="margin-top:12px">
     <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Activité hebdomadaire</div><div class="bars" id="chart"></div></div>
     <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Méthodes populaires</div>
@@ -573,14 +775,14 @@ tr:hover td{background:#f9fcfa}
     <div class="admin-icon"><i class="ti ti-shield-check"></i></div>
     <div>
       <h2>Panel Administrateur</h2>
-      <p>adminf2kpay@gmail.com · Gestion complète F2KPay</p>
+      <p>f2kmultiservice@gmail.com · Gestion complète F2KPay</p>
     </div>
   </div>
   <div class="admin-metrics">
     <div class="mc"><div class="mc-label">👥 Marchands</div><div class="mc-val" id="a-merch">0</div><div class="mc-unit">comptes actifs</div></div>
     <div class="mc"><div class="mc-label">📋 KYC</div><div class="mc-val" id="a-kyc">0</div><div class="mc-unit">en attente</div></div>
     <div class="mc"><div class="mc-label">💸 Retraits</div><div class="mc-val" id="a-wd">0</div><div class="mc-unit">à approuver</div></div>
-    <div class="mc"><div class="mc-label">📈 Volume</div><div class="mc-val" id="a-vol">0</div><div class="mc-unit">FCFA traités</div></div>
+    <div class="mc"><div class="mc-label">💰 Mes commissions</div><div class="mc-val" id="a-commission">0</div><div class="mc-unit">FCFA accumulés</div></div>
   </div>
   <div class="tab-nav">
     <button class="tab-btn on" onclick="switchAdTab('at-merch',this)"><i class="ti ti-users"></i> Marchands</button>
@@ -681,7 +883,7 @@ tr:hover td{background:#f9fcfa}
       <div class="state-box" id="co-proc"><div class="spin"></div><div style="font-size:14px;font-weight:600;color:var(--gd)">Traitement...</div><div style="font-size:12px;color:var(--hi);margin-top:4px">Confirmez sur votre téléphone</div></div>
       <div class="state-box" id="co-succ"><div class="succ-ico"><i class="ti ti-check"></i></div><div style="font-family:var(--fh);font-size:19px;font-weight:800;margin-bottom:6px">Paiement réussi !</div><div style="font-size:13px;color:var(--mu);line-height:1.6">Paiement reçu avec succès.<br>Un reçu vous a été envoyé.</div><div style="background:var(--bg);border-radius:var(--rs);padding:10px;margin-top:12px;font-size:11px;color:var(--hi);border:1px solid var(--brd)" id="co-ref">Réf: F2K-XXXXXX</div></div>
       <div class="state-box" id="co-err"><div style="font-size:36px;margin-bottom:8px">❌</div><div style="font-family:var(--fh);font-size:17px;font-weight:800;margin-bottom:6px;color:var(--r)">Paiement échoué</div><div style="font-size:13px;color:var(--mu)">Vérifiez votre solde et réessayez.</div><button class="btn btn-g" style="margin-top:12px" onclick="resetCo()">Réessayer</button></div>
-      <div class="co-foot">Paiement sécurisé par <strong>F2KPay</strong><div class="sec-row"><i class="ti ti-shield-check" style="font-size:11px;color:var(--g)"></i> Chiffrement SSL</div></div>
+      <div class="co-foot">Paiement sécurisé par <strong>F2KPay</strong><div class="sec-row"><i class="ti ti-shield-check" style="font-size:11px;color:var(--g)"></i> Chiffrement SSL</div><div style="margin-top:6px;font-size:10px">Support : <a href="mailto:f2kmultiservice@gmail.com" style="color:var(--g)">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708" style="color:var(--g)">WhatsApp</a></div></div>
     </div>
   </div>
 </div>
@@ -775,7 +977,7 @@ window._loaderTimeout = setTimeout(function() {
     var landing = document.getElementById("landing");
     if (landing) { landing.classList.add("on"); landing.style.display = "block"; }
   }
-}, 2500);
+}, 1000);
 </script>
 
 <!-- ════════════════ FIREBASE + LOGIC ════════════════ -->
@@ -808,8 +1010,8 @@ const CDN = {
 // ╔══════════════════════════════════════╗
 // ║  BACKEND URL — URL Render            ║
 // ╚══════════════════════════════════════╝
-const BACKEND = "https://VOTRE_BACKEND.onrender.com";
-const ADMIN_EMAIL = "adminf2kpay@gmail.com";
+const BACKEND = "https://f2kpay-backend.onrender.com";
+const ADMIN_EMAIL = "f2kmultiservice@gmail.com";
 
 // ── INIT ─────────────────────────────────────────────────
 const app = initializeApp(firebaseConfig);
@@ -889,7 +1091,10 @@ window.doRegister = async () => {
     await setDoc(doc(db,"users",cred.user.uid), {
       uid:cred.user.uid, firstName:fn, lastName:ln, email, phone,
       role: email===ADMIN_EMAIL?"admin":"merchant",
-      status:"active", kycStatus:"none", balance:0,
+      status:"active",
+      kycStatus: email===ADMIN_EMAIL?"approved":"none", // admin approuvé d'office
+      balance:0,
+      commissionWallet:0,
       createdAt: serverTimestamp(),
     });
     showToast("Compte créé !");
@@ -930,7 +1135,7 @@ onAuthStateChanged(auth, async user => {
       document.getElementById("nl-admin").style.display="flex";
       goPage("admin-pg"); loadAdmin();
     } else {
-      if (UD.status==="disabled") { await signOut(auth); showToast("Compte désactivé. Contactez adminf2kpay@gmail.com","err"); return goPage("landing"); }
+      if (UD.status==="disabled") { await signOut(auth); showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err"); return goPage("landing"); }
       document.getElementById("nl-dash").style.display="flex";
       goPage("dash-pg"); loadDash();
     }
@@ -981,6 +1186,7 @@ async function loadDash() {
   renderWD(wds);
 
   renderChart();
+  loadAPIKeys();
 }
 
 function updateKYCBanner(status) {
@@ -1163,6 +1369,12 @@ window.submitKYC = async () => {
 //  ADMIN
 // ══════════════════════════════════════════
 async function loadAdmin() {
+  // Commissions wallet admin
+  const adminSnap = await getDocs(query(collection(db,"users"),where("email","==",ADMIN_EMAIL)));
+  if (!adminSnap.empty) {
+    const adminData = adminSnap.docs[0].data();
+    document.getElementById("a-commission").textContent = (adminData.commissionWallet||0).toLocaleString();
+  }
   const mq=query(collection(db,"users"),where("role","==","merchant"));
   const ms=await getDocs(mq); const merch=[]; ms.forEach(d=>merch.push({id:d.id,...d.data()}));
   document.getElementById("a-merch").textContent=merch.filter(m=>m.status==="active").length;
@@ -1249,7 +1461,7 @@ window.adminWithdrawal = async () => {
   if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
   if (!phone) return showToast("Entrez un numéro","err");
   // await fetch(`${BACKEND}/api/admin-payout`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amt,method:meth,phone,note})});
-  await addDoc(collection(db,"withdrawals"),{merchantId:CU.uid,merchantName:"ADMIN F2KPay",merchantEmail:ADMIN_EMAIL,amount:amt,method:meth,phone,note,status:"approved",type:"admin",createdAt:serverTimestamp()});
+  await addDoc(collection(db,"withdrawals"),{merchantId:CU.uid,merchantName:"ADMIN F2KPay",merchantEmail:"f2kmultiservice@gmail.com",amount:amt,method:meth,phone,note,status:"approved",type:"admin",createdAt:serverTimestamp()});
   showToast("Demande de retrait admin envoyée à Moneroo ✅");
   document.getElementById("adm-amt").value=""; document.getElementById("adm-phone").value="";
 };
@@ -1271,7 +1483,24 @@ window.doPay = async () => {
       const ref=`F2K-${Date.now().toString(36).toUpperCase()}`;
       await addDoc(collection(db,"transactions"),{merchantId:linkPreview.uid,linkId:linkPreview.id,customerName:name,customerEmail:email,amount:linkPreview.amount,currency:linkPreview.currency||"XOF",method:"Mobile Money",status:"success",reference:ref,createdAt:serverTimestamp()});
       const fs=await getDoc(doc(db,"users",linkPreview.uid)); const bal=fs.data()?.balance||0;
-      await updateDoc(doc(db,"users",linkPreview.uid),{balance:bal+(linkPreview.amount*0.98)});
+      // Répartition : Moneroo 2.5% + F2KPay 2% = 4.5% de frais total
+      // Marchand reçoit 95.5% du montant brut
+      const MONEROO_FEE = 0.025;   // 2.5% — part Moneroo
+      const F2KPAY_FEE  = 0.02;    // 2%   — votre commission
+      const MERCHANT_RATE = 1 - MONEROO_FEE - F2KPAY_FEE; // 95.5%
+      const grossAmount   = linkPreview.amount;
+      const merchantNet   = Math.floor(grossAmount * MERCHANT_RATE);
+      const f2kCommission = Math.floor(grossAmount * F2KPAY_FEE);
+
+      await updateDoc(doc(db,"users",linkPreview.uid),{balance:bal + merchantNet});
+
+      // Créditer le wallet admin (votre commission)
+      const adminSnap = await getDocs(query(collection(db,"users"),where("email","==",ADMIN_EMAIL)));
+      if (!adminSnap.empty) {
+        const adminDoc = adminSnap.docs[0];
+        const adminBal = adminDoc.data()?.commissionWallet || 0;
+        await updateDoc(doc(db,"users",adminDoc.id),{ commissionWallet: adminBal + f2kCommission });
+      }
     }
     document.getElementById("co-proc").style.display="none";
     document.getElementById("co-succ").style.display="block";
@@ -1279,6 +1508,129 @@ window.doPay = async () => {
   } catch { document.getElementById("co-proc").style.display="none"; document.getElementById("co-err").style.display="block"; }
 };
 window.resetCo = () => { document.getElementById("co-body").style.display="block"; ["co-proc","co-succ","co-err"].forEach(id=>document.getElementById(id).style.display="none"); };
+
+// ══════════════════════════════════════════
+//  API KEYS
+// ══════════════════════════════════════════
+let skVisible = false;
+let currentSK = "";
+
+function genKey(prefix) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let key = prefix + '_';
+  for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
+  return key;
+}
+
+window.generateAPIKeys = async () => {
+  if (!CU) return;
+  const btn = document.getElementById("btn-gen-keys");
+  const txt = document.getElementById("gen-keys-txt");
+  btn.disabled = true; txt.textContent = "Génération...";
+
+  const pk = genKey("pk_live");
+  const sk = genKey("sk_live");
+
+  try {
+    await setDoc(doc(db, "apiKeys", CU.uid), {
+      uid: CU.uid,
+      publicKey: pk,
+      secretKey: sk,
+      webhookUrl: "",
+      webhookEvents: ["payment.success", "payment.failed"],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    displayAPIKeys(pk, sk);
+    showToast("Clés API générées !");
+  } catch(e) { showToast("Erreur : " + e.message, "err"); }
+  btn.disabled = false; txt.textContent = "Régénérer les clés";
+};
+
+function displayAPIKeys(pk, sk) {
+  document.getElementById("api-pk").textContent = pk;
+  currentSK = sk;
+  document.getElementById("api-sk").textContent = "••••••••••••••••••••••••••••••••••••";
+  document.getElementById("api-sk-real").textContent = sk;
+  skVisible = false;
+  document.getElementById("gen-keys-txt").textContent = "Régénérer les clés";
+}
+
+window.toggleSK = () => {
+  skVisible = !skVisible;
+  const el = document.getElementById("api-sk");
+  el.textContent = skVisible ? currentSK : "••••••••••••••••••••••••••••••••••••";
+  document.getElementById("btn-toggle-sk").innerHTML = `<i class="ti ti-${skVisible?'eye-off':'eye'}" style="font-size:13px"></i>`;
+};
+
+window.copyKey = (id) => {
+  const el = document.getElementById(id);
+  const text = el.textContent;
+  if (!text || text.startsWith("•") || text === "Générez vos clés ci-dessous") return showToast("Générez d'abord vos clés","warn");
+  navigator.clipboard.writeText(text).catch(()=>{});
+  showToast("Clé copiée !");
+};
+
+window.revokeAPIKeys = async () => {
+  if (!CU) return;
+  if (!confirm("Révoquer vos clés API ? Toutes vos intégrations cesseront de fonctionner.")) return;
+  try {
+    await updateDoc(doc(db,"apiKeys",CU.uid), {
+      publicKey: "REVOKED", secretKey: "REVOKED", updatedAt: serverTimestamp()
+    });
+    document.getElementById("api-pk").textContent = "Clés révoquées — Régénérez";
+    document.getElementById("api-sk").textContent = "••••••••••••••••••••••••";
+    currentSK = "";
+    document.getElementById("gen-keys-txt").textContent = "Générer mes clés API";
+    showToast("Clés révoquées");
+  } catch(e) { showToast("Erreur","err"); }
+};
+
+window.saveWebhook = async () => {
+  if (!CU) return;
+  const url = document.getElementById("webhook-url").value.trim();
+  if (url && !url.startsWith("http")) return showToast("URL invalide","err");
+  const events = [];
+  if (document.getElementById("wh-success").checked) events.push("payment.success");
+  if (document.getElementById("wh-failed").checked) events.push("payment.failed");
+  if (document.getElementById("wh-refund").checked) events.push("payment.refunded");
+  try {
+    await updateDoc(doc(db,"apiKeys",CU.uid), { webhookUrl: url, webhookEvents: events, updatedAt: serverTimestamp() });
+    showToast("Webhook enregistré !");
+  } catch {
+    // Si le doc n'existe pas encore
+    await setDoc(doc(db,"apiKeys",CU.uid), { uid:CU.uid, webhookUrl:url, webhookEvents:events, publicKey:"", secretKey:"", createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
+    showToast("Webhook enregistré !");
+  }
+};
+
+window.switchCodeTab = (id, btn) => {
+  document.querySelectorAll(".code-pane").forEach(p => p.classList.remove("on"));
+  document.querySelectorAll("#t-api .tab-btn").forEach(b => b.classList.remove("on"));
+  document.getElementById(id).classList.add("on");
+  btn.classList.add("on");
+};
+
+async function loadAPIKeys() {
+  if (!CU) return;
+  try {
+    const snap = await getDoc(doc(db,"apiKeys",CU.uid));
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.publicKey && d.publicKey !== "REVOKED") {
+        displayAPIKeys(d.publicKey, d.secretKey);
+      } else {
+        document.getElementById("gen-keys-txt").textContent = "Générer mes clés API";
+      }
+      if (d.webhookUrl) document.getElementById("webhook-url").value = d.webhookUrl;
+      if (d.webhookEvents) {
+        document.getElementById("wh-success").checked = d.webhookEvents.includes("payment.success");
+        document.getElementById("wh-failed").checked = d.webhookEvents.includes("payment.failed");
+        document.getElementById("wh-refund").checked = d.webhookEvents.includes("payment.refunded");
+      }
+    }
+  } catch(e) { console.log("Pas encore de clés API"); }
+}
 
 // ══════════════════════════════════════════
 //  ROUTING (liens publics ?pay=slug)
