@@ -1129,61 +1129,63 @@ onAuthStateChanged(auth, async user => {
   clearTimeout(window._loaderTimeout);
   document.getElementById("loader").classList.add("hide");
 
-  // Remettre le bouton login si on revient sur auth
   const btnLogin = document.getElementById("btn-login");
   if (btnLogin) { btnLogin.disabled=false; btnLogin.innerHTML='<i class="ti ti-login"></i> Se connecter'; }
 
   if (user) {
     CU = user;
-    try {
-      const snap = await getDoc(doc(db,"users",user.uid));
 
-      // Profil introuvable dans Firestore — l'utilisateur s'est inscrit
-      // via Firebase Auth mais le profil Firestore n'a pas été créé
-      if (!snap.exists()) {
-        showToast("Profil introuvable. Recréez votre compte.","err");
-        await signOut(auth);
-        goPage("auth-pg");
-        return;
-      }
-
-      UD = snap.data();
-
-      // Navbar
-      document.getElementById("nav-guest").style.display="none";
-      document.getElementById("nav-user").style.display="flex";
-      document.getElementById("nav-name").textContent = UD.firstName || "";
-      const initials = ((UD.firstName||"?")[0] + (UD.lastName||"?")[0]).toUpperCase();
-      document.getElementById("nav-av").textContent = initials;
-      if (UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
-
-      if (UD.role==="admin") {
-        document.getElementById("nl-admin").style.display="flex";
-        document.getElementById("nl-dash").style.display="none";
-        goPage("admin-pg");
-        loadAdmin();
-      } else {
-        if (UD.status==="disabled") {
+    // Retry jusqu'à 5 fois avec 1 seconde entre chaque tentative
+    let snap = null;
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        snap = await getDoc(doc(db,"users",user.uid));
+        break; // succès — on sort de la boucle
+      } catch(e) {
+        attempts++;
+        if (attempts >= 5) {
+          showToast("Impossible de charger votre profil. Réessayez.","err");
           await signOut(auth);
-          showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err");
-          return goPage("landing");
+          goPage("auth-pg");
+          return;
         }
-        document.getElementById("nl-dash").style.display="flex";
-        document.getElementById("nl-admin").style.display="none";
-        goPage("dash-pg");
-        loadDash();
+        // Attendre 1 seconde avant de réessayer
+        await new Promise(r => setTimeout(r, 1000));
       }
-    } catch(e) {
-      console.error("Erreur lecture profil:", e.code, e.message);
-      if (e.code === "permission-denied") {
-        showToast("Erreur de permission. Vérifiez les règles Firestore.","err");
-      } else if (e.code === "unavailable") {
-        showToast("Firestore indisponible. Vérifiez votre connexion.","err");
-      } else {
-        showToast("Erreur connexion : " + e.message,"err");
-      }
+    }
+
+    if (!snap || !snap.exists()) {
+      showToast("Profil introuvable. Recréez votre compte.","err");
       await signOut(auth);
       goPage("auth-pg");
+      return;
+    }
+
+    UD = snap.data();
+
+    document.getElementById("nav-guest").style.display="none";
+    document.getElementById("nav-user").style.display="flex";
+    document.getElementById("nav-name").textContent = UD.firstName || "";
+    const initials = ((UD.firstName||"?")[0] + (UD.lastName||"?")[0]).toUpperCase();
+    document.getElementById("nav-av").textContent = initials;
+    if (UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
+
+    if (UD.role==="admin") {
+      document.getElementById("nl-admin").style.display="flex";
+      document.getElementById("nl-dash").style.display="none";
+      goPage("admin-pg");
+      loadAdmin();
+    } else {
+      if (UD.status==="disabled") {
+        await signOut(auth);
+        showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err");
+        return goPage("landing");
+      }
+      document.getElementById("nl-dash").style.display="flex";
+      document.getElementById("nl-admin").style.display="none";
+      goPage("dash-pg");
+      loadDash();
     }
   } else {
     CU=null; UD=null;
