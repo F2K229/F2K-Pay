@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>F2KPay — Encaissez en ligne sans site web</title>
-<meta name="description" content="Créez des liens de paiement Mobile Money et carte bancaire en 30 secondes.">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<!-- Firebase compat — fonctionne partout sans import/module -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
-/* ══════════════════════════════════════
-   RESET & VARIABLES
-══════════════════════════════════════ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
   --g:#1D9E75;--gl:#E1F5EE;--gd:#0F6E56;--gm:#9FE1CB;
@@ -20,144 +20,185 @@
   --tx:#141f1a;--mu:#587066;--hi:#98b4ac;
   --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
   --rad:12px;--rs:8px;
-  --shadow:0 2px 12px rgba(0,0,0,.06);
 }
-html{font-size:16px}
 body{font-family:var(--fb);background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh;overflow-x:hidden}
-img{max-width:100%}
 button{cursor:pointer;font-family:var(--fb)}
 input,select,textarea{font-family:var(--fb)}
 
-/* ══ LOADER ══ */
+/* LOADER */
 #loader{position:fixed;inset:0;background:#fff;display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
 #loader.hide{opacity:0;pointer-events:none}
-.loader-inner{text-align:center}
-.loader-logo{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--g)}
-.loader-bar{width:120px;height:3px;background:var(--brd);border-radius:10px;margin:12px auto 0;overflow:hidden}
-.loader-fill{height:100%;background:var(--g);border-radius:10px;animation:loadfill 1.5s ease-in-out infinite}
-@keyframes loadfill{0%{width:0%;margin-left:0}50%{width:80%;margin-left:0}100%{width:0%;margin-left:100%}}
+.ld-logo{font-family:var(--fh);font-size:28px;font-weight:800;color:var(--g);text-align:center}
+.ld-bar{width:120px;height:3px;background:var(--brd);border-radius:10px;margin:12px auto 0;overflow:hidden}
+.ld-fill{height:100%;background:var(--g);border-radius:10px;animation:ldf 1.5s ease-in-out infinite}
+@keyframes ldf{0%{width:0;margin-left:0}50%{width:80%;margin-left:0}100%{width:0;margin-left:100%}}
 
-/* ══ NAV ══ */
-nav{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
-.logo{font-family:var(--fh);font-weight:800;font-size:20px;color:var(--g);letter-spacing:-.5px;cursor:pointer;flex-shrink:0}
-.logo span{color:var(--tx)}
-.nav-center{display:flex;gap:2px}
-.nl{padding:6px 12px;border-radius:var(--rs);border:none;background:none;font-family:var(--fb);font-size:12px;color:var(--mu);display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
-.nl.on{background:var(--gl);color:var(--gd);font-weight:500}
-.nl:hover:not(.on){background:var(--bg)}
-.nav-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.nav-btn{padding:6px 14px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
-.nav-btn.outline{background:none;border:1.5px solid var(--g);color:var(--g)}
-.nav-btn.solid{background:var(--g);color:#fff}
-.av{width:32px;height:32px;border-radius:50%;background:var(--g);color:#fff;font-weight:700;font-size:11px;font-family:var(--fh);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative}
-.av-dot{position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--a);border:2px solid #fff;display:none}
-
-/* Mobile Nav Hidden Labels */
-@media(max-width:480px){
-  .nl .nl-label{display:none}
-  .nav-btn.outline{display:none}
-}
-
-/* ══ PAGES ══ */
-.pg{display:none}
-.pg.on{display:block;animation:fu .2s ease}
-@keyframes fu{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-
-/* ══ TOAST ══ */
-.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(20px);background:#141f1a;color:#fff;padding:11px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;white-space:nowrap;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+/* TOAST */
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(20px);background:#141f1a;color:#fff;padding:11px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap;max-width:92vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--r)}
 .toast.warn{background:var(--a)}
 
-/* ══ MODAL ══ */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center;padding:0}
+/* NAV */
+nav{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.logo{font-family:var(--fh);font-weight:800;font-size:20px;color:var(--g);cursor:pointer;flex-shrink:0}
+.logo span{color:var(--tx)}
+.nav-tabs{display:flex;gap:2px}
+.nt{padding:6px 10px;border-radius:var(--rs);border:none;background:none;font-size:12px;color:var(--mu);display:flex;align-items:center;gap:5px;transition:all .15s}
+.nt.on{background:var(--gl);color:var(--gd);font-weight:500}
+.nav-r{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.nbtn{padding:6px 13px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.nbtn.out{background:none;border:1.5px solid var(--g);color:var(--g)}
+.nbtn.fill{background:var(--g);color:#fff}
+.av{width:32px;height:32px;border-radius:50%;background:var(--g);color:#fff;font-weight:700;font-size:11px;font-family:var(--fh);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex-shrink:0}
+.av-dot{position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--a);border:2px solid #fff;display:none}
+@media(max-width:480px){.nbtn.out{display:none}}
+
+/* PAGES */
+.pg{display:none}
+.pg.on{display:block;animation:fu .2s ease}
+@keyframes fu{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:flex-end;justify-content:center}
 @media(min-width:600px){.modal-bg{align-items:center;padding:16px}}
 .modal-bg.show{display:flex}
-.modal{background:#fff;border-radius:16px 16px 0 0;padding:24px 20px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto}
+.modal{background:#fff;border-radius:16px 16px 0 0;padding:22px 18px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
 @media(min-width:600px){.modal{border-radius:var(--rad)}}
+.modal-handle{width:36px;height:4px;background:var(--brd);border-radius:10px;margin:0 auto 14px}
 .modal h3{font-family:var(--fh);font-size:17px;font-weight:700;margin-bottom:4px}
-.modal-sub{font-size:13px;color:var(--mu);margin-bottom:20px}
-.modal-close{float:right;background:none;border:none;font-size:22px;color:var(--mu);cursor:pointer;line-height:1}
-.modal-handle{width:36px;height:4px;background:var(--brd);border-radius:10px;margin:0 auto 16px}
+.modal-sub{font-size:12px;color:var(--mu);margin-bottom:18px}
+.mclose{float:right;background:none;border:none;font-size:22px;color:var(--mu);cursor:pointer}
 
-/* ══ FORMS ══ */
-.fg{margin-bottom:14px}
+/* FORMS */
+.fg{margin-bottom:13px}
 .fg label{display:block;font-size:11px;font-weight:600;margin-bottom:5px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
-.fg input,.fg select,.fg textarea{width:100%;padding:11px 13px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:var(--fb);font-size:14px;background:var(--surf);color:var(--tx);outline:none;transition:border-color .15s;-webkit-appearance:none}
+.fg input,.fg select,.fg textarea{width:100%;padding:11px 13px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:14px;background:#fff;color:var(--tx);outline:none;transition:border-color .15s;-webkit-appearance:none}
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--g)}
-.fg input[type="file"]{padding:8px;font-size:12px;border-style:dashed}
 .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* ══ BUTTONS ══ */
-.btn{padding:10px 18px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+/* BUTTONS */
+.btn{padding:10px 18px;border-radius:var(--rs);border:none;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .btn-g{background:var(--g);color:#fff}.btn-g:hover{background:var(--gd)}
 .btn-o{background:none;border:1.5px solid var(--brd);color:var(--tx)}.btn-o:hover{background:var(--bg)}
 .btn-r{background:var(--r);color:#fff}
 .btn-a{background:var(--a);color:#fff}
-.btn-full{width:100%;padding:13px}
+.btn-full{width:100%;padding:12px;justify-content:center}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-xs{padding:5px 9px;border-radius:6px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.bx-g{background:var(--gl);color:var(--gd)}.bx-g:hover{background:var(--g);color:#fff}
+.bx-r{background:var(--rl);color:var(--r)}.bx-r:hover{background:var(--r);color:#fff}
+.bx-grey{background:var(--bg);color:var(--mu)}.bx-grey:hover{background:var(--brd)}
+.bx-a{background:var(--al);color:#854F0B}.bx-a:hover{background:var(--a);color:#fff}
 
-/* ══ BADGES ══ */
-.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .b-ok{background:var(--gl);color:var(--gd)}
 .b-wait{background:var(--al);color:#854F0B}
 .b-ko{background:var(--rl);color:var(--r)}
-.b-info{background:#EBF4FF;color:#2B6CB0}
 .b-grey{background:var(--bg);color:var(--mu)}
 
-/* ══ CARD ══ */
-.card{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rad);padding:16px;box-shadow:var(--shadow)}
+/* CARD */
+.card{background:#fff;border:1px solid var(--brd);border-radius:var(--rad);padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
 
-/* ══════════════════════════════════════
-   LANDING PAGE — MOBILE FIRST
-══════════════════════════════════════ */
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:var(--rad);border:1px solid var(--brd)}
+table{width:100%;border-collapse:collapse;min-width:440px}
+th{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;padding:9px 12px;text-align:left;border-bottom:1px solid var(--brd);background:var(--bg);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--bg);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fcfa}
+.empty{text-align:center;padding:28px;color:var(--hi);font-size:13px}
+.empty i{font-size:24px;display:block;margin-bottom:6px}
+
+/* INFO BOX */
+.info-box{padding:11px 13px;border-radius:var(--rs);font-size:12px;line-height:1.6;margin-bottom:14px}
+.ib-warn{background:var(--al);border:1px solid var(--a);color:#854F0B}
+.ib-danger{background:var(--rl);border:1px solid #FC8181;color:var(--r)}
+.ib-ok{background:var(--gl);border:1px solid var(--g);color:var(--gd)}
+.ib-info{background:#EBF4FF;border:1px solid #90CDF4;color:#2B6CB0}
+
+/* TABS */
+.tab-nav{display:flex;border-bottom:1px solid var(--brd);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.tab-nav::-webkit-scrollbar{display:none}
+.tab-btn{padding:8px 14px;border:none;background:none;font-size:12px;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.tab-btn.on{color:var(--g);border-bottom-color:var(--g);font-weight:500}
+.tab-pane{display:none}.tab-pane.on{display:block}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+@media(min-width:600px){.metrics{grid-template-columns:repeat(4,1fr)}}
+.mc{background:#fff;border:1px solid var(--brd);border-radius:var(--rad);padding:14px}
+.mc-label{font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.mc-val{font-family:var(--fh);font-size:24px;font-weight:800}
+.mc-unit{font-size:10px;color:var(--hi);margin-top:1px}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--brd);border-radius:var(--rs);padding:18px;text-align:center;cursor:pointer;transition:all .15s;position:relative;margin-top:4px}
+.upload-zone:hover{border-color:var(--g);background:var(--gl)}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0}
+.upload-zone i{font-size:22px;color:var(--hi);display:block;margin-bottom:5px}
+.upload-zone p{font-size:12px;color:var(--mu)}
+.upload-zone small{font-size:11px;color:var(--hi)}
+.up-prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.up-thumb{width:68px;height:50px;border-radius:5px;object-fit:cover;border:1px solid var(--brd)}
+
+/* KYC BANNER */
+.kyc-banner{border-radius:var(--rad);padding:13px 15px;margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.kyc-banner.none,.kyc-banner.rejected{background:var(--rl);border:1.5px solid #FC8181}
+.kyc-banner.pending{background:var(--al);border:1.5px solid var(--a)}
+.kyc-banner.approved{background:var(--gl);border:1.5px solid var(--g)}
+.kb-left{display:flex;align-items:flex-start;gap:9px}
+.kb-ico{font-size:20px}
+.kb-title{font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:2px}
+.kb-text{font-size:11px;color:var(--mu)}
+
+/* CHART */
+.bars{display:flex;align-items:flex-end;gap:4px;height:70px}
+.bg2{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bb{width:100%;border-radius:3px 3px 0 0;background:var(--gl)}
+.bb.hi{background:var(--g)}
+.bbl{font-size:9px;color:var(--hi)}
+.mb-list{display:flex;flex-direction:column;gap:9px}
+.mbr{display:flex;flex-direction:column;gap:3px}
+.mbh{display:flex;justify-content:space-between;font-size:11px}
+.mbt{background:var(--bg);border-radius:3px;height:4px;overflow:hidden}
+.mbf{height:100%;border-radius:3px}
+
+/* LANDING */
 #landing{background:#fff}
-
-/* Hero */
 .hero{background:linear-gradient(160deg,#0a2318 0%,#0f6e56 55%,#1D9E75 100%);padding:48px 20px 44px;text-align:center;color:#fff;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='0.04'%3E%3Cpath d='M20 20v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM0 20v-4h-2v4h-4v2h4v4h2v-4h4v-2H0z'/%3E%3C/g%3E%3C/svg%3E")}
+.hero::before{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='0.04'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/svg%3E")}
 .hero-badge{position:relative;display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);border-radius:20px;padding:4px 12px;font-size:11px;margin-bottom:16px}
 .hero h1{position:relative;font-family:var(--fh);font-size:30px;font-weight:800;line-height:1.12;margin-bottom:14px}
-@media(min-width:480px){.hero h1{font-size:38px}}
-@media(min-width:768px){.hero{padding:80px 48px 70px}.hero h1{font-size:50px}}
+@media(min-width:500px){.hero h1{font-size:40px}}
 .accent{color:#86e8c4}
-.hero-p{position:relative;font-size:15px;opacity:.85;max-width:440px;margin:0 auto 28px;line-height:1.6}
+.hero-p{position:relative;font-size:15px;opacity:.85;max-width:420px;margin:0 auto 28px;line-height:1.6}
 .hero-cta{position:relative;display:flex;flex-direction:column;gap:10px;align-items:center}
-@media(min-width:400px){.hero-cta{flex-direction:row;justify-content:center}}
-.btn-hp{padding:13px 24px;border-radius:var(--rs);font-weight:700;cursor:pointer;font-family:var(--fh);font-size:14px;border:none;background:#fff;color:var(--gd);transition:all .15s;width:100%;max-width:200px}
-.btn-ho{padding:13px 24px;border-radius:var(--rs);font-weight:500;cursor:pointer;font-family:var(--fb);font-size:14px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;transition:all .15s;width:100%;max-width:200px}
-
-/* Trust bar */
-.trust-bar{display:flex;overflow-x:auto;gap:0;padding:0;border-bottom:1px solid var(--brd);scrollbar-width:none}
+@media(min-width:420px){.hero-cta{flex-direction:row;justify-content:center}}
+.btn-hp{padding:13px 22px;border-radius:var(--rs);font-weight:700;font-family:var(--fh);font-size:14px;border:none;background:#fff;color:var(--gd);cursor:pointer;width:100%;max-width:180px}
+.btn-ho{padding:13px 22px;border-radius:var(--rs);font-weight:500;font-family:var(--fb);font-size:14px;border:1.5px solid rgba(255,255,255,.35);background:transparent;color:#fff;cursor:pointer;width:100%;max-width:180px}
+.trust-bar{display:flex;overflow-x:auto;border-bottom:1px solid var(--brd);scrollbar-width:none}
 .trust-bar::-webkit-scrollbar{display:none}
-.trust-i{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);padding:12px 14px;border-right:1px solid var(--brd);white-space:nowrap;flex-shrink:0}
-.trust-i i{color:var(--g);font-size:14px}
-
-/* Features */
-.feat-grid{display:grid;grid-template-columns:1fr;gap:0}
+.trust-i{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu);padding:11px 14px;border-right:1px solid var(--brd);white-space:nowrap;flex-shrink:0}
+.trust-i i{color:var(--g);font-size:13px}
+.feat-grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--brd)}
 @media(min-width:600px){.feat-grid{grid-template-columns:1fr 1fr}}
 @media(min-width:900px){.feat-grid{grid-template-columns:repeat(3,1fr)}}
-.feat-grid{background:var(--brd);gap:1px}
-.fc{background:#fff;padding:24px 20px}
-@media(min-width:600px){.fc{padding:30px 24px}}
-.fi{width:42px;height:42px;border-radius:10px;background:var(--gl);display:flex;align-items:center;justify-content:center;margin-bottom:14px;color:var(--g)}
+.fc{background:#fff;padding:22px 20px}
+.fi{width:40px;height:40px;border-radius:10px;background:var(--gl);display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:var(--g)}
 .fi i{font-size:20px}
 .fc h3{font-family:var(--fh);font-size:15px;font-weight:700;margin-bottom:6px}
-.fc p{color:var(--mu);font-size:13px;line-height:1.65}
-
-/* Stats */
+.fc p{color:var(--mu);font-size:12px;line-height:1.65}
 .stats-strip{display:grid;grid-template-columns:1fr 1fr;background:#0a2318;color:#fff}
 @media(min-width:600px){.stats-strip{grid-template-columns:repeat(4,1fr)}}
-.st{padding:24px 16px;text-align:center;border-right:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
-.st-n{font-family:var(--fh);font-size:30px;font-weight:800;color:#86e8c4;display:block}
+.st{padding:22px 14px;text-align:center;border-right:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
+.st-n{font-family:var(--fh);font-size:28px;font-weight:800;color:#86e8c4;display:block}
 .st-l{font-size:11px;opacity:.6;margin-top:3px}
-
-/* Pricing */
 .pricing-sec{padding:40px 16px;background:var(--bg)}
 @media(min-width:600px){.pricing-sec{padding:56px 32px}}
 .sh{text-align:center;margin-bottom:28px}
 .sh h2{font-family:var(--fh);font-size:24px;font-weight:800;margin-bottom:6px}
-@media(min-width:600px){.sh h2{font-size:28px}}
 .sh p{color:var(--mu);font-size:13px}
 .pgrid{display:grid;grid-template-columns:1fr;gap:14px;max-width:860px;margin:0 auto}
 @media(min-width:600px){.pgrid{grid-template-columns:1fr 1fr}}
@@ -172,128 +213,57 @@ nav{background:var(--surf);border-bottom:1px solid var(--brd);padding:0 16px;dis
 .pfl{list-style:none;margin-bottom:18px;display:flex;flex-direction:column;gap:7px}
 .pfl li{font-size:12px;color:var(--mu);display:flex;align-items:center;gap:6px}
 .pfl li i{color:var(--g);font-size:13px;flex-shrink:0}
+.l-footer{background:#0a2318;color:rgba(255,255,255,.5);text-align:center;padding:20px 16px;font-size:12px}
+.l-footer a{color:#86e8c4}
 
-/* Footer landing */
-.landing-footer{background:#0a2318;color:rgba(255,255,255,.5);text-align:center;padding:20px 16px;font-size:12px}
-.landing-footer a{color:#86e8c4}
-
-/* ══════════════════════════════════════
-   AUTH
-══════════════════════════════════════ */
+/* AUTH */
 #auth-pg{min-height:calc(100vh - 54px);display:flex;align-items:center;justify-content:center;padding:20px 16px;background:var(--bg)}
-.auth-card{background:#fff;border-radius:var(--rad);padding:28px 20px;max-width:400px;width:100%;box-shadow:var(--shadow)}
-.auth-logo{font-family:var(--fh);font-size:24px;font-weight:800;color:var(--g);margin-bottom:4px}
+.auth-card{background:#fff;border-radius:var(--rad);padding:26px 20px;max-width:400px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.auth-logo{font-family:var(--fh);font-size:22px;font-weight:800;color:var(--g);margin-bottom:4px}
 .auth-logo span{color:var(--tx)}
-.auth-sub{font-size:13px;color:var(--mu);margin-bottom:22px}
-.auth-toggle{display:flex;gap:3px;background:var(--bg);border-radius:var(--rs);padding:3px;margin-bottom:20px}
-.at{flex:1;padding:8px;border-radius:6px;border:none;background:none;font-family:var(--fb);font-size:13px;color:var(--mu);cursor:pointer;transition:all .15s}
+.auth-sub{font-size:13px;color:var(--mu);margin-bottom:20px}
+.auth-toggle{display:flex;gap:3px;background:var(--bg);border-radius:var(--rs);padding:3px;margin-bottom:18px}
+.at{flex:1;padding:8px;border-radius:6px;border:none;background:none;font-size:13px;color:var(--mu);cursor:pointer;transition:all .15s}
 .at.on{background:#fff;color:var(--gd);font-weight:500;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 
-/* ══════════════════════════════════════
-   DASHBOARD MARCHAND
-══════════════════════════════════════ */
-#dash-pg{padding:16px}
-@media(min-width:600px){#dash-pg{padding:24px 28px}}
-.dash-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+/* DASHBOARD */
+#dash-pg{padding:14px 16px}
+@media(min-width:600px){#dash-pg{padding:22px 28px}}
+.dash-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:8px;flex-wrap:wrap}
 .dash-top h2{font-family:var(--fh);font-size:18px;font-weight:700}
 .dash-top p{color:var(--mu);font-size:12px;margin-top:2px}
-
-/* KYC Banner */
-.kyc-banner{border-radius:var(--rad);padding:14px 16px;margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.kyc-banner.pending{background:var(--al);border:1.5px solid var(--a)}
-.kyc-banner.none,.kyc-banner.rejected{background:var(--rl);border:1.5px solid #FC8181}
-.kyc-banner.approved{background:var(--gl);border:1.5px solid var(--g)}
-.kb-left{display:flex;align-items:flex-start;gap:10px}
-.kb-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
-.kb-title{font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:2px}
-.kb-text{font-size:12px;color:var(--mu)}
-
-/* Metrics */
-.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-@media(min-width:600px){.metrics{grid-template-columns:repeat(4,1fr)}}
-.mc{background:var(--surf);border:1px solid var(--brd);border-radius:var(--rad);padding:14px}
-.mc-label{font-size:10px;color:var(--mu);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.mc-val{font-family:var(--fh);font-size:22px;font-weight:800}
-.mc-unit{font-size:10px;color:var(--hi);margin-top:1px}
-
-/* Tabs */
-.tab-nav{display:flex;gap:0;border-bottom:1px solid var(--brd);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
-.tab-nav::-webkit-scrollbar{display:none}
-.tab-btn{padding:8px 14px;border:none;background:none;font-family:var(--fb);font-size:12px;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0}
-.tab-btn.on{color:var(--g);border-bottom-color:var(--g);font-weight:500}
-.tab-pane{display:none}.tab-pane.on{display:block}
-
-/* Table responsive */
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--rad);border:1px solid var(--brd);background:#fff}
-table{width:100%;border-collapse:collapse;min-width:480px}
-th{font-size:10px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;padding:9px 12px;text-align:left;border-bottom:1px solid var(--brd);white-space:nowrap;background:var(--bg)}
-td{padding:10px 12px;border-bottom:1px solid var(--bg);font-size:12px;vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#f9fcfa}
-.empty{text-align:center;padding:28px 16px;color:var(--hi);font-size:13px}
-.empty i{font-size:24px;display:block;margin-bottom:6px}
-
-/* Chart */
-.dash-cols{display:grid;grid-template-columns:1fr;gap:12px}
+.dash-cols{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
 @media(min-width:700px){.dash-cols{grid-template-columns:1.8fr 1fr}}
-.bars{display:flex;align-items:flex-end;gap:4px;height:70px}
-.bg2{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
-.bb{width:100%;border-radius:3px 3px 0 0;background:var(--gl)}
-.bb.hi{background:var(--g)}
-.bbl{font-size:9px;color:var(--hi)}
-.mb-list{display:flex;flex-direction:column;gap:9px}
-.mbr{display:flex;flex-direction:column;gap:3px}
-.mbh{display:flex;justify-content:space-between;font-size:11px}
-.mbt{background:var(--bg);border-radius:3px;height:4px;overflow:hidden}
-.mbf{height:100%;border-radius:3px}
 
-/* Withdraw */
-.info-box{padding:11px 13px;border-radius:var(--rs);font-size:12px;line-height:1.6;margin-bottom:14px}
-.info-box.warn{background:var(--al);border:1px solid var(--a);color:#854F0B}
-.info-box.danger{background:var(--rl);border:1px solid #FC8181;color:var(--r)}
-.info-box.success{background:var(--gl);border:1px solid var(--g);color:var(--gd)}
-
-/* ══════════════════════════════════════
-   ADMIN
-══════════════════════════════════════ */
-#admin-pg{padding:16px}
-@media(min-width:600px){#admin-pg{padding:24px 28px}}
-.admin-head{background:linear-gradient(135deg,#0a2318,#1D9E75);border-radius:var(--rad);padding:18px 20px;margin-bottom:18px;color:#fff;display:flex;align-items:center;gap:12px}
-.admin-icon{width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.admin-icon i{font-size:22px}
-.admin-head h2{font-family:var(--fh);font-size:17px;font-weight:700}
+/* ADMIN */
+#admin-pg{padding:14px 16px}
+@media(min-width:600px){#admin-pg{padding:22px 28px}}
+.admin-head{background:linear-gradient(135deg,#0a2318,#1D9E75);border-radius:var(--rad);padding:16px 18px;margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:12px}
+.admin-ico{width:42px;height:42px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.admin-ico i{font-size:22px}
+.admin-head h2{font-family:var(--fh);font-size:16px;font-weight:700}
 .admin-head p{font-size:11px;opacity:.75;margin-top:2px}
-.admin-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-@media(min-width:600px){.admin-metrics{grid-template-columns:repeat(4,1fr)}}
-.btn-xs{padding:5px 9px;border-radius:6px;border:none;font-family:var(--fb);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
-.bx-g{background:var(--gl);color:var(--gd)}.bx-g:hover{background:var(--g);color:#fff}
-.bx-r{background:var(--rl);color:var(--r)}.bx-r:hover{background:var(--r);color:#fff}
-.bx-a{background:var(--al);color:#7B341E}.bx-a:hover{background:var(--a);color:#fff}
-.bx-grey{background:var(--bg);color:var(--mu)}.bx-grey:hover{background:var(--brd)}
 .td-user{display:flex;align-items:center;gap:7px}
 .u-av{width:28px;height:28px;border-radius:50%;background:var(--g);color:#fff;font-weight:700;font-size:10px;font-family:var(--fh);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.kyc-thumb{width:52px;height:38px;border-radius:5px;object-fit:cover;border:1px solid var(--brd);cursor:pointer;flex-shrink:0}
-.kyc-thumb:hover{opacity:.8;transform:scale(1.05)}
+.kyc-thumb{width:50px;height:36px;border-radius:5px;object-fit:cover;border:1px solid var(--brd);cursor:pointer}
 .td-actions{display:flex;gap:4px;flex-wrap:wrap}
 
-/* ══════════════════════════════════════
-   CHECKOUT
-══════════════════════════════════════ */
+/* CHECKOUT */
 #checkout-pg{background:#ECF3EE;min-height:calc(100vh - 54px);padding:20px 14px}
 .co-wrap{max-width:400px;margin:0 auto}
 .co-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.1)}
-.co-head{background:linear-gradient(145deg,#0a2318,#1D9E75);padding:24px 20px;color:#fff}
-.co-merch{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.co-head{background:linear-gradient(145deg,#0a2318,#1D9E75);padding:22px 20px;color:#fff}
+.co-merch{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .co-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-weight:800;font-size:14px;border:1px solid rgba(255,255,255,.2)}
 .co-mn{font-weight:600;font-size:14px}
-.co-ms{font-size:11px;opacity:.65;margin-top:1px}
+.co-ms{font-size:11px;opacity:.65}
 .co-amt{font-family:var(--fh);font-size:38px;font-weight:800;line-height:1}
 .co-cur{font-size:15px;opacity:.75;font-weight:400}
 .co-desc{font-size:12px;opacity:.75;margin-top:5px}
 .co-body{padding:20px}
 .co-tabs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--brd);border:1px solid var(--brd);border-radius:var(--rs);overflow:hidden;margin-bottom:14px}
-.ct{padding:9px;text-align:center;font-size:12px;cursor:pointer;background:#fff;border:none;font-family:var(--fb);color:var(--mu);font-weight:500;transition:all .15s}
-.ct.on{background:var(--gl);color:var(--gd)}
+.ctab{padding:9px;text-align:center;font-size:12px;cursor:pointer;background:#fff;border:none;color:var(--mu);font-weight:500;transition:all .15s}
+.ctab.on{background:var(--gl);color:var(--gd)}
 .pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
 .pm{border:1.5px solid var(--brd);border-radius:var(--rs);padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s}
 .pm.sel{border-color:var(--g);background:var(--gl)}
@@ -304,26 +274,18 @@ tr:hover td{background:#f9fcfa}
 .btn-pay{width:100%;padding:13px;border-radius:var(--rs);background:var(--g);color:#fff;border:none;font-family:var(--fh);font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
 .btn-pay:hover{background:var(--gd)}
 .co-foot{text-align:center;padding:10px 18px 16px;font-size:11px;color:var(--hi)}
-.sec-row{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px}
+.co-foot a{color:var(--g)}
+.sec-row{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:4px}
 .state-box{display:none;text-align:center;padding:36px 20px}
 .spin{width:44px;height:44px;border:3px solid var(--gl);border-top-color:var(--g);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 12px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .succ-ico{width:60px;height:60px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--g);font-size:26px;border:2px solid var(--gm)}
 
-/* Upload */
-.upload-zone{border:2px dashed var(--brd);border-radius:var(--rs);padding:20px 16px;text-align:center;cursor:pointer;transition:all .15s;position:relative;margin-top:4px}
-.upload-zone:hover{border-color:var(--g);background:var(--gl)}
-.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0}
-.upload-zone i{font-size:24px;color:var(--hi);display:block;margin-bottom:6px}
-.upload-zone p{font-size:12px;color:var(--mu)}
-.upload-zone small{font-size:11px;color:var(--hi)}
-.up-prev{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.up-thumb{width:70px;height:52px;border-radius:5px;object-fit:cover;border:1px solid var(--brd)}
-
+/* CODE BLOCKS */
 .code-pane{display:none}.code-pane.on{display:block}
 pre{white-space:pre-wrap;word-break:break-all}
 
-/* Scrollbar */
+/* SCROLLBAR */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--brd);border-radius:10px}
@@ -333,37 +295,30 @@ pre{white-space:pre-wrap;word-break:break-all}
 
 <!-- LOADER -->
 <div id="loader">
-  <div class="loader-inner">
-    <div class="loader-logo">F2KPay</div>
-    <div class="loader-bar"><div class="loader-fill"></div></div>
-  </div>
+  <div><div class="ld-logo">F2KPay</div><div class="ld-bar"><div class="ld-fill"></div></div></div>
 </div>
-
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- ════════════════ NAVBAR ════════════════ -->
+<!-- NAV -->
 <nav>
   <div class="logo" onclick="goPage('landing')">F2K<span>Pay</span></div>
-  <div class="nav-center" id="nav-center">
-    <button class="nl on" id="nl-home" onclick="goPage('landing')"><i class="ti ti-home"></i><span class="nl-label">Accueil</span></button>
-    <button class="nl" id="nl-dash" onclick="goPage('dash-pg')" style="display:none"><i class="ti ti-layout-dashboard"></i><span class="nl-label">Dashboard</span></button>
-    <button class="nl" id="nl-admin" onclick="goPage('admin-pg')" style="display:none"><i class="ti ti-shield"></i><span class="nl-label">Admin</span></button>
+  <div class="nav-tabs" id="nav-tabs">
+    <button class="nt on" id="nl-home" onclick="goPage('landing')"><i class="ti ti-home"></i><span style="display:none" class="nl-lbl"> Accueil</span></button>
+    <button class="nt" id="nl-dash" style="display:none" onclick="goPage('dash-pg')"><i class="ti ti-layout-dashboard"></i><span class="nl-lbl"> Dashboard</span></button>
+    <button class="nt" id="nl-admin" style="display:none" onclick="goPage('admin-pg')"><i class="ti ti-shield"></i><span class="nl-lbl"> Admin</span></button>
   </div>
   <div class="nav-r" id="nav-guest">
-    <button class="nav-btn outline" onclick="showAuth('login')">Connexion</button>
-    <button class="nav-btn solid" onclick="showAuth('register')">S'inscrire</button>
+    <button class="nbtn out" onclick="showAuth('login')">Connexion</button>
+    <button class="nbtn fill" onclick="showAuth('register')">S'inscrire</button>
   </div>
   <div class="nav-r" id="nav-user" style="display:none">
-    <span style="font-size:11px;color:var(--mu);display:none" id="nav-name" class="nl-label"></span>
-    <div class="av" id="nav-av" title="Cliquer pour déconnecter" onclick="logout()">
-      <div class="av-dot" id="av-dot"></div>
-    </div>
-    <button class="nav-btn outline" onclick="logout()">Sortir</button>
+    <span style="font-size:11px;color:var(--mu)" id="nav-name"></span>
+    <div class="av" id="nav-av" onclick="doLogout()"><div class="av-dot" id="av-dot"></div></div>
+    <button class="nbtn out" onclick="doLogout()">Sortir</button>
   </div>
 </nav>
 
-<!-- ════════════════ LANDING ════════════════ -->
+<!-- LANDING -->
 <div id="landing" class="pg on">
   <div class="hero">
     <div class="hero-badge">🌍 Pour l'Afrique de l'Ouest</div>
@@ -374,7 +329,6 @@ pre{white-space:pre-wrap;word-break:break-all}
       <button class="btn-ho" onclick="showAuth('login')">Se connecter</button>
     </div>
   </div>
-
   <div class="trust-bar">
     <div class="trust-i"><i class="ti ti-shield-check"></i> Paiements sécurisés</div>
     <div class="trust-i"><i class="ti ti-device-mobile"></i> MTN · Orange · Moov · Wave</div>
@@ -382,72 +336,50 @@ pre{white-space:pre-wrap;word-break:break-all}
     <div class="trust-i"><i class="ti ti-id-badge"></i> KYC obligatoire pour retirer</div>
     <div class="trust-i"><i class="ti ti-clock"></i> Versement sous 24h</div>
   </div>
-
   <div class="feat-grid">
-    <div class="fc"><div class="fi"><i class="ti ti-link"></i></div><h3>Liens de paiement</h3><p>Créez un lien, partagez-le. Votre client paie sans créer de compte.</p></div>
-    <div class="fc"><div class="fi"><i class="ti ti-file-invoice"></i></div><h3>Factures numériques</h3><p>Factures professionnelles avec lien de paiement intégré. Suivi en temps réel.</p></div>
-    <div class="fc"><div class="fi"><i class="ti ti-device-mobile"></i></div><h3>Mobile Money</h3><p>MTN, Orange, Moov, Wave. Vos clients paient avec ce qu'ils ont déjà.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-link"></i></div><h3>Liens de paiement</h3><p>Créez un lien en secondes. Partagez par WhatsApp. Vos clients paient sans créer de compte.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-file-invoice"></i></div><h3>Factures numériques</h3><p>Factures pro avec lien de paiement intégré. Suivi en temps réel depuis votre dashboard.</p></div>
+    <div class="fc"><div class="fi"><i class="ti ti-device-mobile"></i></div><h3>Mobile Money</h3><p>MTN, Orange, Moov, Wave et plus. Vos clients paient avec ce qu'ils ont déjà.</p></div>
     <div class="fc"><div class="fi"><i class="ti ti-chart-bar"></i></div><h3>Dashboard analytique</h3><p>Suivez vos ventes, transactions et rapports depuis un seul endroit.</p></div>
     <div class="fc"><div class="fi"><i class="ti ti-id-badge"></i></div><h3>KYC & Vérification</h3><p>L'admin valide votre identité. Les retraits sont sécurisés et contrôlés.</p></div>
     <div class="fc"><div class="fi"><i class="ti ti-shield"></i></div><h3>Sécurité maximale</h3><p>Retraits approuvés manuellement par l'administrateur avant envoi.</p></div>
   </div>
-
   <div class="stats-strip">
     <div class="st"><span class="st-n">+60</span><div class="st-l">Méthodes de paiement</div></div>
     <div class="st"><span class="st-n">12+</span><div class="st-l">Pays couverts</div></div>
-    <div class="st"><span class="st-n">2%</span><div class="st-l">Commission</div></div>
+    <div class="st"><span class="st-n">2%</span><div class="st-l">Ma commission</div></div>
     <div class="st"><span class="st-n">30s</span><div class="st-l">Pour créer un lien</div></div>
   </div>
-
   <div class="pricing-sec">
     <div class="sh"><h2>Tarifs transparents</h2><p>Commencez gratuitement. Évoluez selon vos besoins.</p></div>
     <div class="pgrid">
       <div class="pc">
-        <div class="pn">Starter</div>
-        <div class="pp">0 <small>FCFA / mois</small></div>
+        <div class="pn">Starter</div><div class="pp">0 <small>FCFA/mois</small></div>
         <div class="pd">Pour tester et démarrer</div>
-        <ul class="pfl">
-          <li><i class="ti ti-check"></i>5 liens actifs</li>
-          <li><i class="ti ti-check"></i>Mobile Money uniquement</li>
-          <li><i class="ti ti-check"></i>3% de commission</li>
-        </ul>
+        <ul class="pfl"><li><i class="ti ti-check"></i>5 liens actifs</li><li><i class="ti ti-check"></i>Mobile Money</li><li><i class="ti ti-check"></i>3% de commission</li></ul>
         <button class="btn btn-o btn-full" onclick="showAuth('register')">Commencer</button>
       </div>
       <div class="pc feat">
         <div class="fp">⭐ Populaire</div>
-        <div class="pn">Pro</div>
-        <div class="pp">9 900 <small>FCFA / mois</small></div>
+        <div class="pn">Pro</div><div class="pp">9 900 <small>FCFA/mois</small></div>
         <div class="pd">Pour les entrepreneurs actifs</div>
-        <ul class="pfl">
-          <li><i class="ti ti-check"></i>Liens illimités</li>
-          <li><i class="ti ti-check"></i>Mobile Money + Cartes</li>
-          <li><i class="ti ti-check"></i>2% de commission</li>
-          <li><i class="ti ti-check"></i>Factures & rapports</li>
-          <li><i class="ti ti-check"></i>API access</li>
-        </ul>
+        <ul class="pfl"><li><i class="ti ti-check"></i>Liens illimités</li><li><i class="ti ti-check"></i>Mobile Money + Cartes</li><li><i class="ti ti-check"></i>2% de commission</li><li><i class="ti ti-check"></i>Factures & rapports</li><li><i class="ti ti-check"></i>Accès API</li></ul>
         <button class="btn btn-g btn-full" onclick="showAuth('register')">Commencer Pro</button>
       </div>
       <div class="pc">
-        <div class="pn">Business</div>
-        <div class="pp">29 900 <small>FCFA / mois</small></div>
+        <div class="pn">Business</div><div class="pp">29 900 <small>FCFA/mois</small></div>
         <div class="pd">Pour les PME</div>
-        <ul class="pfl">
-          <li><i class="ti ti-check"></i>Tout du Pro</li>
-          <li><i class="ti ti-check"></i>1.5% commission</li>
-          <li><i class="ti ti-check"></i>Multi-utilisateurs</li>
-          <li><i class="ti ti-check"></i>Support prioritaire</li>
-        </ul>
+        <ul class="pfl"><li><i class="ti ti-check"></i>Tout du Pro</li><li><i class="ti ti-check"></i>1.5% commission</li><li><i class="ti ti-check"></i>Multi-utilisateurs</li><li><i class="ti ti-check"></i>Support prioritaire</li></ul>
         <button class="btn btn-o btn-full" onclick="showAuth('register')">Commencer</button>
       </div>
     </div>
   </div>
-
-  <div class="landing-footer">
-    © 2025 F2KPay · Support : <a href="mailto:f2kmultiservice@gmail.com">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708" style="color:#86e8c4">WhatsApp</a>
+  <div class="l-footer">
+    © 2025 F2KPay · <a href="mailto:f2kmultiservice@gmail.com">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708">WhatsApp Support</a>
   </div>
 </div>
 
-<!-- ════════════════ AUTH ════════════════ -->
+<!-- AUTH -->
 <div id="auth-pg" class="pg">
   <div class="auth-card">
     <div class="auth-logo">F2K<span>Pay</span></div>
@@ -456,13 +388,13 @@ pre{white-space:pre-wrap;word-break:break-all}
       <button class="at on" id="at-login" onclick="switchAuth('login')">Se connecter</button>
       <button class="at" id="at-reg" onclick="switchAuth('register')">Créer un compte</button>
     </div>
-    <div id="login-form">
+    <div id="f-login">
       <div class="fg"><label>Email</label><input type="email" id="l-email" placeholder="vous@email.com" autocomplete="email"></div>
       <div class="fg"><label>Mot de passe</label><input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"></div>
       <button class="btn btn-g btn-full" id="btn-login" onclick="doLogin()"><i class="ti ti-login"></i> Se connecter</button>
       <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--mu)"><span style="cursor:pointer;color:var(--g)" onclick="doReset()">Mot de passe oublié ?</span></p>
     </div>
-    <div id="reg-form" style="display:none">
+    <div id="f-reg" style="display:none">
       <div class="fg-row">
         <div class="fg"><label>Prénom *</label><input type="text" id="r-fn" placeholder="Abdou" autocomplete="given-name"></div>
         <div class="fg"><label>Nom *</label><input type="text" id="r-ln" placeholder="Koné" autocomplete="family-name"></div>
@@ -475,288 +407,82 @@ pre{white-space:pre-wrap;word-break:break-all}
   </div>
 </div>
 
-<!-- ════════════════ DASHBOARD MARCHAND ════════════════ -->
+<!-- DASHBOARD MARCHAND -->
 <div id="dash-pg" class="pg">
   <div class="dash-top">
-    <div>
-      <h2 id="dash-hi">Bonjour 👋</h2>
-      <p id="dash-date">Dashboard marchand</p>
-    </div>
+    <div><h2 id="dash-hi">Bonjour 👋</h2><p id="dash-date">Dashboard marchand</p></div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button class="btn btn-o" style="padding:8px 12px;font-size:12px" onclick="openModal('m-kyc')"><i class="ti ti-id-badge"></i> KYC</button>
       <button class="btn btn-g" style="padding:8px 12px;font-size:12px" onclick="openModal('m-link')"><i class="ti ti-plus"></i> Nouveau lien</button>
     </div>
   </div>
-
-  <!-- KYC Banner -->
   <div class="kyc-banner none" id="kyc-banner">
     <div class="kb-left">
-      <div class="kb-icon" id="kb-icon">⚠️</div>
-      <div>
-        <div class="kb-title" id="kb-title">KYC requis</div>
-        <div class="kb-text" id="kb-text">Soumettez vos documents pour activer les retraits.</div>
-      </div>
+      <div class="kb-ico" id="kb-ico">⚠️</div>
+      <div><div class="kb-title" id="kb-title">KYC requis</div><div class="kb-text" id="kb-text">Soumettez vos documents pour activer les retraits.</div></div>
     </div>
     <button class="btn btn-a" style="padding:7px 12px;font-size:12px" id="kb-btn" onclick="openModal('m-kyc')">Soumettre</button>
   </div>
-
-  <!-- Métriques -->
   <div class="metrics">
     <div class="mc"><div class="mc-label">💰 Revenus</div><div class="mc-val" id="m-rev">0</div><div class="mc-unit">FCFA encaissés</div></div>
     <div class="mc"><div class="mc-label">📊 Transactions</div><div class="mc-val" id="m-tx">0</div><div class="mc-unit">paiements</div></div>
     <div class="mc"><div class="mc-label">🔗 Liens actifs</div><div class="mc-val" id="m-lnk">0</div><div class="mc-unit">en ligne</div></div>
     <div class="mc"><div class="mc-label">💳 Solde</div><div class="mc-val" id="m-bal">0</div><div class="mc-unit">FCFA disponible</div></div>
   </div>
-
   <div class="tab-nav">
     <button class="tab-btn on" onclick="switchTab('t-links',this)"><i class="ti ti-link"></i> Liens</button>
     <button class="tab-btn" onclick="switchTab('t-tx',this)"><i class="ti ti-receipt"></i> Transactions</button>
     <button class="tab-btn" onclick="switchTab('t-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
     <button class="tab-btn" onclick="switchTab('t-api',this)"><i class="ti ti-code"></i> API</button>
   </div>
-
-  <!-- Liens -->
   <div id="t-links" class="tab-pane on">
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Produit</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
-      <tbody id="tb-links"><tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Produit</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="tb-links"><tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- Transactions -->
   <div id="t-tx" class="tab-pane">
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Client</th><th>Montant</th><th>Méthode</th><th>Date</th><th>Statut</th></tr></thead>
-      <tbody id="tb-tx"><tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Client</th><th>Montant</th><th>Méthode</th><th>Date</th><th>Statut</th></tr></thead><tbody id="tb-tx"><tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- Retraits -->
   <div id="t-wd" class="tab-pane">
     <div class="card" style="margin-bottom:12px">
-      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:12px">Demander un retrait</div>
-      <div class="info-box danger" id="wd-locked"><i class="ti ti-lock" style="vertical-align:-2px;margin-right:5px"></i><strong>KYC requis</strong> — Faites valider votre KYC avant de retirer.</div>
+      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:10px">Demander un retrait</div>
+      <div class="info-box ib-danger" id="wd-locked"><i class="ti ti-lock" style="vertical-align:-2px;margin-right:5px"></i><strong>KYC requis</strong> — Faites valider votre KYC avant de retirer.</div>
       <div id="wd-form" style="display:none">
-        <div class="fg"><label>Montant (FCFA)</label><input type="number" id="wd-amt" placeholder="50000" min="1000"></div>
-        <div class="fg"><label>Méthode</label>
-          <select id="wd-meth">
-            <option value="mtn_bj">📱 MTN Mobile Money</option>
-            <option value="moov_bj">🔵 Moov Money</option>
-            <option value="orange_bj">🟠 Orange Money</option>
-            <option value="wave">🌊 Wave</option>
-          </select>
-        </div>
+        <div class="fg"><label>Montant (FCFA)</label><input type="number" id="wd-amt" placeholder="50000" min="1000" inputmode="numeric"></div>
+        <div class="fg"><label>Méthode</label><select id="wd-meth"><option value="mtn_bj">📱 MTN Mobile Money</option><option value="moov_bj">🔵 Moov Money</option><option value="orange_bj">🟠 Orange Money</option><option value="wave">🌊 Wave</option></select></div>
         <div class="fg"><label>Numéro de réception</label><input type="tel" id="wd-phone" placeholder="+229 97 XX XX XX"></div>
-        <button class="btn btn-g btn-full" onclick="submitWithdrawal()"><i class="ti ti-cash"></i> Soumettre la demande</button>
+        <button class="btn btn-g btn-full" id="btn-wd" onclick="doWithdrawal()"><i class="ti ti-cash"></i> Soumettre la demande</button>
         <p style="font-size:11px;color:var(--hi);text-align:center;margin-top:8px">Traitement par l'admin sous 24h.</p>
       </div>
     </div>
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Date</th><th>Montant</th><th>Méthode</th><th>Statut</th></tr></thead>
-      <tbody id="tb-wd"><tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Montant</th><th>Méthode</th><th>Statut</th></tr></thead><tbody id="tb-wd"><tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- ═══ API KEYS ═══ -->
   <div id="t-api" class="tab-pane">
-
-    <!-- Clés API -->
     <div class="card" style="margin-bottom:12px">
       <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px">🔑 Vos clés API</div>
-      <div style="font-size:12px;color:var(--mu);margin-bottom:16px">Utilisez ces clés pour intégrer F2KPay à votre application. Ne partagez jamais votre clé secrète.</div>
-
-      <!-- Clé publique -->
-      <div style="margin-bottom:14px">
-        <label style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px">Clé publique (pk_live)</label>
-        <div style="display:flex;gap:7px;align-items:center">
-          <div style="flex:1;background:var(--bg);border:1px solid var(--brd);border-radius:var(--rs);padding:10px 12px;font-family:monospace;font-size:12px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="api-pk">Générez vos clés ci-dessous</div>
-          <button class="btn-xs bx-grey" onclick="copyKey('api-pk')" title="Copier"><i class="ti ti-copy" style="font-size:13px"></i></button>
-        </div>
-        <div style="font-size:11px;color:var(--hi);margin-top:4px">Utilisable côté frontend / application mobile</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:14px">Utilisez ces clés pour intégrer F2KPay à votre application.</div>
+      <div class="fg"><label>Clé publique (pk_live)</label>
+        <div style="display:flex;gap:6px"><input type="text" id="api-pk" value="Générez vos clés ci-dessous" readonly style="font-family:monospace;font-size:12px">
+        <button class="btn-xs bx-grey" onclick="copyKey('api-pk')"><i class="ti ti-copy"></i></button></div>
+        <div style="font-size:10px;color:var(--hi);margin-top:3px">Utilisable côté frontend</div>
       </div>
-
-      <!-- Clé secrète -->
-      <div style="margin-bottom:16px">
-        <label style="font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:6px">Clé secrète (sk_live)</label>
-        <div style="display:flex;gap:7px;align-items:center">
-          <div style="flex:1;background:var(--bg);border:1px solid var(--brd);border-radius:var(--rs);padding:10px 12px;font-family:monospace;font-size:12px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="api-sk">••••••••••••••••••••••••</div>
-          <button class="btn-xs bx-grey" id="btn-toggle-sk" onclick="toggleSK()" title="Afficher/Masquer"><i class="ti ti-eye" style="font-size:13px"></i></button>
-          <button class="btn-xs bx-grey" onclick="copyKey('api-sk-real')" title="Copier"><i class="ti ti-copy" style="font-size:13px"></i></button>
-        </div>
-        <div id="api-sk-real" style="display:none"></div>
-        <div style="font-size:11px;color:var(--r);margin-top:4px"><i class="ti ti-alert-triangle" style="font-size:11px;vertical-align:-1px"></i> Serveur uniquement — ne jamais exposer côté client</div>
+      <div class="fg"><label>Clé secrète (sk_live)</label>
+        <div style="display:flex;gap:6px"><input type="text" id="api-sk" value="••••••••••••••••••••••••" readonly style="font-family:monospace;font-size:12px">
+        <button class="btn-xs bx-grey" id="btn-sk-eye" onclick="toggleSK()"><i class="ti ti-eye"></i></button>
+        <button class="btn-xs bx-grey" onclick="copyKey('api-sk')"><i class="ti ti-copy"></i></button></div>
+        <div style="font-size:10px;color:var(--r);margin-top:3px"><i class="ti ti-alert-triangle" style="font-size:10px"></i> Serveur uniquement — ne jamais exposer</div>
       </div>
-
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-g" style="padding:8px 14px;font-size:12px" id="btn-gen-keys" onclick="generateAPIKeys()"><i class="ti ti-refresh"></i> <span id="gen-keys-txt">Générer mes clés API</span></button>
+        <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="genAPIKeys()"><i class="ti ti-refresh"></i> <span id="gen-key-txt">Générer mes clés</span></button>
         <button class="btn btn-r" style="padding:8px 14px;font-size:12px" onclick="revokeAPIKeys()"><i class="ti ti-trash"></i> Révoquer</button>
       </div>
     </div>
-
-    <!-- Webhook -->
     <div class="card" style="margin-bottom:12px">
       <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:4px">🔔 Webhook</div>
-      <div style="font-size:12px;color:var(--mu);margin-bottom:14px">F2KPay appellera cette URL après chaque paiement réussi ou échoué.</div>
-      <div class="fg">
-        <label>URL de votre webhook</label>
-        <input type="url" id="webhook-url" placeholder="https://votre-serveur.com/webhook/f2kpay">
-      </div>
-      <div class="fg">
-        <label>Événements à notifier</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-success" checked> Paiement réussi (payment.success)</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-failed" checked> Paiement échoué (payment.failed)</label>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="wh-refund"> Remboursement (payment.refunded)</label>
-        </div>
-      </div>
-      <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="saveWebhook()"><i class="ti ti-device-floppy"></i> Enregistrer le webhook</button>
-    </div>
-
-    <!-- Documentation -->
-    <div class="card">
-      <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:14px">📖 Intégrer F2KPay dans votre app</div>
-
-      <!-- Tabs code -->
-      <div style="display:flex;gap:2px;border-bottom:1px solid var(--brd);margin-bottom:14px;overflow-x:auto">
-        <button class="tab-btn on" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-js',this)">JavaScript</button>
-        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-php',this)">PHP</button>
-        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-python',this)">Python</button>
-        <button class="tab-btn" style="font-size:11px;padding:6px 12px" onclick="switchCodeTab('code-curl',this)">cURL</button>
-      </div>
-
-      <!-- JavaScript -->
-      <div id="code-js" class="code-pane on">
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code id="code-js-content">// Initier un paiement F2KPay
-const response = await fetch('https://f2kpay-backend.onrender.com/api/payments/initiate', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-F2K-Public-Key': 'pk_live_VOTRE_CLE_PUBLIQUE'
-  },
-  body: JSON.stringify({
-    slug: 'votre-lien-slug',
-    customer: {
-      firstName: 'Jean',
-      lastName: 'Dupont',
-      email: 'jean@email.com',
-      phone: '22997000000'
-    }
-  })
-});
-
-const data = await response.json();
-if (data.success) {
-  // Rediriger vers la page de paiement
-  window.location.href = data.data.checkoutUrl;
-}</code></pre>
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin:12px 0 8px">▶ Envoyer des fonds à un client (payout)</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>// Envoyer des fonds via F2KPay
-const response = await fetch('https://f2kpay-backend.onrender.com/api/payout', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-F2K-Secret-Key': 'sk_live_VOTRE_CLE_SECRETE' // côté serveur uniquement
-  },
-  body: JSON.stringify({
-    amount: 5000,
-    currency: 'XOF',
-    method: 'mtn_bj',
-    phone: '22997000000',
-    description: 'Remboursement commande #123'
-  })
-});
-const data = await response.json();</code></pre>
-      </div>
-
-      <!-- PHP -->
-      <div id="code-php" class="code-pane">
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>&lt;?php
-$curl = curl_init();
-curl_setopt_array($curl, [
-  CURLOPT_URL => 'https://f2kpay-backend.onrender.com/api/payments/initiate',
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_POST => true,
-  CURLOPT_HTTPHEADER => [
-    'Content-Type: application/json',
-    'X-F2K-Public-Key: pk_live_VOTRE_CLE_PUBLIQUE'
-  ],
-  CURLOPT_POSTFIELDS => json_encode([
-    'slug' => 'votre-lien-slug',
-    'customer' => [
-      'firstName' => 'Jean',
-      'lastName'  => 'Dupont',
-      'email'     => 'jean@email.com',
-      'phone'     => '22997000000'
-    ]
-  ])
-]);
-$response = json_decode(curl_exec($curl), true);
-if ($response['success']) {
-  header('Location: ' . $response['data']['checkoutUrl']);
-}
-?&gt;</code></pre>
-      </div>
-
-      <!-- Python -->
-      <div id="code-python" class="code-pane">
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>import requests
-
-response = requests.post(
-  'https://f2kpay-backend.onrender.com/api/payments/initiate',
-  headers={
-    'Content-Type': 'application/json',
-    'X-F2K-Public-Key': 'pk_live_VOTRE_CLE_PUBLIQUE'
-  },
-  json={
-    'slug': 'votre-lien-slug',
-    'customer': {
-      'firstName': 'Jean',
-      'lastName': 'Dupont',
-      'email': 'jean@email.com',
-      'phone': '22997000000'
-    }
-  }
-)
-data = response.json()
-if data['success']:
-    checkout_url = data['data']['checkoutUrl']
-    # Rediriger l'utilisateur vers checkout_url</code></pre>
-      </div>
-
-      <!-- cURL -->
-      <div id="code-curl" class="code-pane">
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Initier un paiement</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>curl -X POST https://f2kpay-backend.onrender.com/api/payments/initiate \
-  -H "Content-Type: application/json" \
-  -H "X-F2K-Public-Key: pk_live_VOTRE_CLE_PUBLIQUE" \
-  -d '{
-    "slug": "votre-lien-slug",
-    "customer": {
-      "firstName": "Jean",
-      "lastName": "Dupont",
-      "email": "jean@email.com",
-      "phone": "22997000000"
-    }
-  }'</code></pre>
-      </div>
-
-      <!-- Réponse type -->
-      <div style="margin-top:14px">
-        <div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:8px">▶ Réponse type</div>
-        <pre style="background:#0a2318;color:#86e8c4;padding:14px;border-radius:var(--rs);font-size:11px;overflow-x:auto;line-height:1.7"><code>{
-  "success": true,
-  "data": {
-    "checkoutUrl": "https://checkout.moneroo.io/xxx",
-    "transactionId": "F2K-abc123"
-  }
-}</code></pre>
-      </div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:12px">F2KPay appellera cette URL après chaque paiement.</div>
+      <div class="fg"><label>URL Webhook</label><input type="url" id="wh-url" placeholder="https://votre-serveur.com/webhook"></div>
+      <button class="btn btn-g" style="padding:8px 14px;font-size:12px" onclick="saveWebhook()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
     </div>
   </div>
-  <div class="dash-cols" style="margin-top:12px">
+  <div class="dash-cols">
     <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Activité hebdomadaire</div><div class="bars" id="chart"></div></div>
     <div class="card"><div style="font-family:var(--fh);font-size:13px;font-weight:700;margin-bottom:12px">Méthodes populaires</div>
       <div class="mb-list">
@@ -769,66 +495,39 @@ if data['success']:
   </div>
 </div>
 
-<!-- ════════════════ ADMIN ════════════════ -->
+<!-- ADMIN -->
 <div id="admin-pg" class="pg">
   <div class="admin-head">
-    <div class="admin-icon"><i class="ti ti-shield-check"></i></div>
-    <div>
-      <h2>Panel Administrateur</h2>
-      <p>f2kmultiservice@gmail.com · Gestion complète F2KPay</p>
-    </div>
+    <div class="admin-ico"><i class="ti ti-shield-check"></i></div>
+    <div><h2>Panel Administrateur</h2><p>f2kmultiservice@gmail.com · F2KPay</p></div>
   </div>
-  <div class="admin-metrics">
-    <div class="mc"><div class="mc-label">👥 Marchands</div><div class="mc-val" id="a-merch">0</div><div class="mc-unit">comptes actifs</div></div>
+  <div class="metrics">
+    <div class="mc"><div class="mc-label">👥 Marchands</div><div class="mc-val" id="a-merch">0</div><div class="mc-unit">actifs</div></div>
     <div class="mc"><div class="mc-label">📋 KYC</div><div class="mc-val" id="a-kyc">0</div><div class="mc-unit">en attente</div></div>
     <div class="mc"><div class="mc-label">💸 Retraits</div><div class="mc-val" id="a-wd">0</div><div class="mc-unit">à approuver</div></div>
-    <div class="mc"><div class="mc-label">💰 Mes commissions</div><div class="mc-val" id="a-commission">0</div><div class="mc-unit">FCFA accumulés</div></div>
+    <div class="mc"><div class="mc-label">💰 Commissions</div><div class="mc-val" id="a-comm">0</div><div class="mc-unit">FCFA accumulés</div></div>
   </div>
   <div class="tab-nav">
-    <button class="tab-btn on" onclick="switchAdTab('at-merch',this)"><i class="ti ti-users"></i> Marchands</button>
-    <button class="tab-btn" onclick="switchAdTab('at-kyc',this)"><i class="ti ti-id-badge"></i> KYC</button>
-    <button class="tab-btn" onclick="switchAdTab('at-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
-    <button class="tab-btn" onclick="switchAdTab('at-mywd',this)"><i class="ti ti-wallet"></i> Mon retrait</button>
+    <button class="tab-btn on" onclick="switchTab('at-merch',this)"><i class="ti ti-users"></i> Marchands</button>
+    <button class="tab-btn" onclick="switchTab('at-kyc',this)"><i class="ti ti-id-badge"></i> KYC</button>
+    <button class="tab-btn" onclick="switchTab('at-wd',this)"><i class="ti ti-cash"></i> Retraits</button>
+    <button class="tab-btn" onclick="switchTab('at-mywd',this)"><i class="ti ti-wallet"></i> Mon retrait</button>
   </div>
-
-  <!-- Marchands -->
   <div id="at-merch" class="tab-pane on">
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Marchand</th><th>Email</th><th>KYC</th><th>Statut</th><th>Solde</th><th>Actions</th></tr></thead>
-      <tbody id="atb-merch"><tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Marchand</th><th>Email</th><th>KYC</th><th>Statut</th><th>Solde</th><th>Actions</th></tr></thead><tbody id="atb-merch"><tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- KYC -->
   <div id="at-kyc" class="tab-pane">
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Marchand</th><th>Documents</th><th>Date</th><th>Actions</th></tr></thead>
-      <tbody id="atb-kyc"><tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Marchand</th><th>Documents</th><th>Date</th><th>Actions</th></tr></thead><tbody id="atb-kyc"><tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- Retraits marchands -->
   <div id="at-wd" class="tab-pane">
-    <div class="tbl-wrap">
-      <table><thead><tr><th>Marchand</th><th>Montant</th><th>Numéro</th><th>Date</th><th>Actions</th></tr></thead>
-      <tbody id="atb-wd"><tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr></tbody></table>
-    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Marchand</th><th>Montant</th><th>Numéro</th><th>Date</th><th>Actions</th></tr></thead><tbody id="atb-wd"><tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr></tbody></table></div>
   </div>
-
-  <!-- Mon retrait admin -->
   <div id="at-mywd" class="tab-pane">
     <div class="card" style="max-width:480px">
       <div style="font-family:var(--fh);font-size:14px;font-weight:700;margin-bottom:8px">Retrait personnel admin</div>
-      <div class="info-box success" style="margin-bottom:14px"><i class="ti ti-info-circle" style="vertical-align:-2px;margin-right:5px"></i>Moneroo enverra directement les fonds au numéro indiqué.</div>
-      <div class="fg"><label>Montant (FCFA)</label><input type="number" id="adm-amt" placeholder="100000" min="1000"></div>
-      <div class="fg"><label>Méthode</label>
-        <select id="adm-meth">
-          <option value="mtn_bj">📱 MTN Mobile Money</option>
-          <option value="moov_bj">🔵 Moov Money</option>
-          <option value="orange_bj">🟠 Orange Money</option>
-          <option value="wave">🌊 Wave</option>
-        </select>
-      </div>
+      <div class="info-box ib-ok" style="margin-bottom:14px"><i class="ti ti-info-circle" style="vertical-align:-2px;margin-right:5px"></i>Moneroo enverra directement les fonds au numéro indiqué.</div>
+      <div class="fg"><label>Montant (FCFA)</label><input type="number" id="adm-amt" placeholder="100000" min="1000" inputmode="numeric"></div>
+      <div class="fg"><label>Méthode</label><select id="adm-meth"><option value="mtn_bj">📱 MTN Mobile Money</option><option value="moov_bj">🔵 Moov Money</option><option value="orange_bj">🟠 Orange Money</option><option value="wave">🌊 Wave</option></select></div>
       <div class="fg"><label>Numéro</label><input type="tel" id="adm-phone" placeholder="+229 97 XX XX XX"></div>
       <div class="fg"><label>Note</label><input type="text" id="adm-note" placeholder="Raison du retrait"></div>
       <button class="btn btn-g btn-full" onclick="adminWithdrawal()"><i class="ti ti-send"></i> Envoyer à Moneroo</button>
@@ -836,7 +535,7 @@ if data['success']:
   </div>
 </div>
 
-<!-- ════════════════ CHECKOUT ════════════════ -->
+<!-- CHECKOUT -->
 <div id="checkout-pg" class="pg">
   <div class="co-wrap">
     <div class="co-card">
@@ -846,12 +545,12 @@ if data['success']:
           <div><div class="co-mn" id="co-mname">Vendeur F2KPay</div><div class="co-ms">Certifié F2KPay ✓</div></div>
         </div>
         <div class="co-amt"><span class="co-cur" id="co-cur">FCFA </span><span id="co-amt">0</span></div>
-        <div class="co-desc" id="co-desc">Produit</div>
+        <div class="co-desc" id="co-desc">Produit / Service</div>
       </div>
       <div class="co-body" id="co-body">
         <div class="co-tabs">
-          <button class="ct on" onclick="swCo(this,'co-mob')">📱 Mobile Money</button>
-          <button class="ct" onclick="swCo(this,'co-card')">💳 Carte bancaire</button>
+          <button class="ctab on" onclick="swCoTab(this,'co-mob')">📱 Mobile Money</button>
+          <button class="ctab" onclick="swCoTab(this,'co-card')">💳 Carte bancaire</button>
         </div>
         <div id="co-mob">
           <div class="pm-grid">
@@ -865,7 +564,7 @@ if data['success']:
           <div class="fg"><label>Numéro Mobile Money</label>
             <div class="ph-row">
               <div class="ph-pre">🇧🇯 +229</div>
-              <input type="tel" id="co-phone" placeholder="97 XX XX XX" maxlength="10" style="flex:1;padding:10px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);font-family:var(--fb);font-size:14px;outline:none;-webkit-appearance:none">
+              <input type="tel" id="co-phone" placeholder="97 XX XX XX" maxlength="10" style="flex:1;padding:10px 11px;border:1.5px solid var(--brd);border-radius:var(--rs);font-size:14px;outline:none;background:#fff">
             </div>
           </div>
         </div>
@@ -873,31 +572,29 @@ if data['success']:
           <div class="fg"><label>Numéro de carte</label><input type="text" placeholder="1234 5678 9012 3456" inputmode="numeric"></div>
           <div class="fg"><label>Nom sur la carte</label><input type="text" placeholder="JEAN DUPONT"></div>
           <div class="fg-row">
-            <div class="fg"><label>Expiration</label><input type="text" placeholder="MM / AA"></div>
-            <div class="fg"><label>CVV</label><input type="text" placeholder="123" inputmode="numeric" maxlength="4"></div>
+            <div class="fg"><label>Expiration</label><input type="text" placeholder="MM/AA"></div>
+            <div class="fg"><label>CVV</label><input type="text" placeholder="123" maxlength="4" inputmode="numeric"></div>
           </div>
-          <div class="fg"><label>Email</label><input type="email" id="co-email-c" placeholder="vous@email.com"></div>
+          <div class="fg"><label>Email</label><input type="email" placeholder="vous@email.com"></div>
         </div>
         <button class="btn-pay" onclick="doPay()"><i class="ti ti-lock" style="font-size:14px"></i> Payer <span id="co-pay-amt">0 FCFA</span></button>
       </div>
       <div class="state-box" id="co-proc"><div class="spin"></div><div style="font-size:14px;font-weight:600;color:var(--gd)">Traitement...</div><div style="font-size:12px;color:var(--hi);margin-top:4px">Confirmez sur votre téléphone</div></div>
-      <div class="state-box" id="co-succ"><div class="succ-ico"><i class="ti ti-check"></i></div><div style="font-family:var(--fh);font-size:19px;font-weight:800;margin-bottom:6px">Paiement réussi !</div><div style="font-size:13px;color:var(--mu);line-height:1.6">Paiement reçu avec succès.<br>Un reçu vous a été envoyé.</div><div style="background:var(--bg);border-radius:var(--rs);padding:10px;margin-top:12px;font-size:11px;color:var(--hi);border:1px solid var(--brd)" id="co-ref">Réf: F2K-XXXXXX</div></div>
-      <div class="state-box" id="co-err"><div style="font-size:36px;margin-bottom:8px">❌</div><div style="font-family:var(--fh);font-size:17px;font-weight:800;margin-bottom:6px;color:var(--r)">Paiement échoué</div><div style="font-size:13px;color:var(--mu)">Vérifiez votre solde et réessayez.</div><button class="btn btn-g" style="margin-top:12px" onclick="resetCo()">Réessayer</button></div>
-      <div class="co-foot">Paiement sécurisé par <strong>F2KPay</strong><div class="sec-row"><i class="ti ti-shield-check" style="font-size:11px;color:var(--g)"></i> Chiffrement SSL</div><div style="margin-top:6px;font-size:10px">Support : <a href="mailto:f2kmultiservice@gmail.com" style="color:var(--g)">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708" style="color:var(--g)">WhatsApp</a></div></div>
+      <div class="state-box" id="co-succ"><div class="succ-ico"><i class="ti ti-check"></i></div><div style="font-family:var(--fh);font-size:18px;font-weight:800;margin-bottom:6px">Paiement réussi !</div><div style="font-size:13px;color:var(--mu);line-height:1.6">Paiement reçu avec succès.<br>Un reçu vous a été envoyé.</div><div style="background:var(--bg);border-radius:var(--rs);padding:10px;margin-top:12px;font-size:11px;color:var(--hi);border:1px solid var(--brd)" id="co-ref">Réf: F2K-XXXXXX</div></div>
+      <div class="state-box" id="co-err"><div style="font-size:36px;margin-bottom:8px">❌</div><div style="font-family:var(--fh);font-size:16px;font-weight:800;margin-bottom:6px;color:var(--r)">Paiement échoué</div><div style="font-size:13px;color:var(--mu)">Vérifiez votre solde et réessayez.</div><button class="btn btn-g" style="margin-top:12px" onclick="resetCo()">Réessayer</button></div>
+      <div class="co-foot">Paiement sécurisé par <strong>F2KPay</strong><div class="sec-row"><i class="ti ti-shield-check" style="font-size:11px;color:var(--g)"></i> Chiffrement SSL</div><div style="margin-top:5px">Support : <a href="mailto:f2kmultiservice@gmail.com">f2kmultiservice@gmail.com</a> · <a href="https://wa.me/2290158070708">WhatsApp</a></div></div>
     </div>
   </div>
 </div>
 
-<!-- ════════════════ MODALS ════════════════ -->
-
-<!-- Créer un lien -->
+<!-- MODALS -->
 <div class="modal-bg" id="m-link">
   <div class="modal">
     <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('m-link')">×</button>
+    <button class="mclose" onclick="closeModal('m-link')">×</button>
     <h3>Créer un lien de paiement</h3>
-    <p class="modal-sub">La page de paiement affichera votre nom, pas la passerelle.</p>
-    <div class="fg"><label>Nom du produit / service *</label><input type="text" id="cl-name" placeholder="Formation Excel, Consultation..."></div>
+    <p class="modal-sub">La page de paiement affichera votre nom.</p>
+    <div class="fg"><label>Nom du produit / service *</label><input type="text" id="cl-name" placeholder="Formation, Consultation..."></div>
     <div class="fg-row">
       <div class="fg"><label>Montant *</label><input type="number" id="cl-amt" placeholder="25000" min="100" inputmode="numeric"></div>
       <div class="fg"><label>Devise</label><select id="cl-cur"><option value="XOF">XOF (FCFA)</option><option value="GHS">GHS (Cedi)</option><option value="NGN">NGN (Naira)</option><option value="EUR">EUR</option></select></div>
@@ -911,233 +608,148 @@ if data['success']:
   </div>
 </div>
 
-<!-- KYC -->
 <div class="modal-bg" id="m-kyc">
   <div class="modal">
     <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('m-kyc')">×</button>
+    <button class="mclose" onclick="closeModal('m-kyc')">×</button>
     <h3>Vérification KYC</h3>
-    <p class="modal-sub">Soumettez vos documents d'identité. L'admin validera sous 48h maximum.</p>
-    <div id="kyc-status-box" style="display:none" class="info-box warn"></div>
+    <p class="modal-sub">Soumettez vos documents. L'admin validera sous 48h.</p>
+    <div id="kyc-status-box" style="display:none" class="info-box ib-warn"></div>
     <div id="kyc-form">
-      <div class="fg"><label>Type de document</label>
-        <select id="kyc-type"><option value="cni">Carte nationale d'identité</option><option value="passeport">Passeport</option><option value="permis">Permis de conduire</option></select>
-      </div>
-      <div class="fg"><label>Recto du document *</label>
-        <div class="upload-zone">
-          <input type="file" id="kyc-f" accept="image/*" onchange="prevFile(this,'pv-f')">
-          <i class="ti ti-upload"></i><p>Recto</p><small>JPG ou PNG · max 5MB</small>
-          <div class="up-prev" id="pv-f"></div>
-        </div>
-      </div>
-      <div class="fg"><label>Verso du document *</label>
-        <div class="upload-zone">
-          <input type="file" id="kyc-b" accept="image/*" onchange="prevFile(this,'pv-b')">
-          <i class="ti ti-upload"></i><p>Verso</p><small>JPG ou PNG · max 5MB</small>
-          <div class="up-prev" id="pv-b"></div>
-        </div>
-      </div>
-      <div class="fg"><label>Selfie avec le document *</label>
-        <div class="upload-zone">
-          <input type="file" id="kyc-s" accept="image/*" onchange="prevFile(this,'pv-s')">
-          <i class="ti ti-upload"></i><p>Tenez votre document visible à côté de votre visage</p><small>JPG ou PNG · max 5MB</small>
-          <div class="up-prev" id="pv-s"></div>
-        </div>
-      </div>
+      <div class="fg"><label>Type de document</label><select id="kyc-type"><option value="cni">Carte nationale d'identité</option><option value="passeport">Passeport</option><option value="permis">Permis de conduire</option></select></div>
+      <div class="fg"><label>Recto *</label><div class="upload-zone"><input type="file" id="kyc-f" accept="image/*" onchange="prevFile(this,'pv-f')"><i class="ti ti-upload"></i><p>Recto du document</p><small>JPG ou PNG · max 5MB</small><div class="up-prev" id="pv-f"></div></div></div>
+      <div class="fg"><label>Verso *</label><div class="upload-zone"><input type="file" id="kyc-b" accept="image/*" onchange="prevFile(this,'pv-b')"><i class="ti ti-upload"></i><p>Verso du document</p><small>JPG ou PNG · max 5MB</small><div class="up-prev" id="pv-b"></div></div></div>
+      <div class="fg"><label>Selfie avec document *</label><div class="upload-zone"><input type="file" id="kyc-s" accept="image/*" onchange="prevFile(this,'pv-s')"><i class="ti ti-upload"></i><p>Votre visage + le document</p><small>JPG ou PNG · max 5MB</small><div class="up-prev" id="pv-s"></div></div></div>
       <button class="btn btn-g btn-full" id="btn-kyc" onclick="submitKYC()"><i class="ti ti-send"></i> Soumettre mes documents</button>
     </div>
   </div>
 </div>
 
-<!-- Vue doc admin -->
 <div class="modal-bg" id="m-doc">
   <div class="modal">
     <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('m-doc')">×</button>
+    <button class="mclose" onclick="closeModal('m-doc')">×</button>
     <h3 id="doc-title">Document KYC</h3>
     <p class="modal-sub" id="doc-sub"></p>
     <img id="doc-img" src="" alt="Document" style="width:100%;border-radius:var(--rs);border:1px solid var(--brd)">
   </div>
 </div>
 
-<!-- Script indépendant : gère le loader SANS Firebase -->
-<!-- S'exécute même si Firebase plante ou si les clés sont invalides -->
+<!-- JAVASCRIPT -->
 <script>
-// Afficher la landing après 2.5s si Firebase n'a pas répondu
-window._loaderTimeout = setTimeout(function() {
-  var loader = document.getElementById("loader");
-  if (loader && !loader.classList.contains("hide")) {
-    loader.classList.add("hide");
-    // Afficher landing manuellement
-    var pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
-    pages.forEach(function(p) {
-      var el = document.getElementById(p);
-      if (el) { el.classList.remove("on"); el.style.display = "none"; }
-    });
-    var landing = document.getElementById("landing");
-    if (landing) { landing.classList.add("on"); landing.style.display = "block"; }
-  }
-}, 1000);
-</script>
-
-<!-- ════════════════ FIREBASE + LOGIC ════════════════ -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script>
-const firebaseConfig = {
+// ╔═══════════════════════════════════════╗
+// ║  FIREBASE CONFIG                      ║
+// ╚═══════════════════════════════════════╝
+firebase.initializeApp({
   apiKey: "AIzaSyBHKolLJdXsK1THnzr79Gb8stD_GUZDfQg",
   authDomain: "f2k-pay.firebaseapp.com",
   projectId: "f2k-pay",
   storageBucket: "f2k-pay.firebasestorage.app",
   messagingSenderId: "593460943860",
-  appId: "1:593460943860:web:940b6c6b0d74d7981637a1",
-  measurementId: "G-XEQ9TF9NRH"
-};
+  appId: "1:593460943860:web:940b6c6b0d74d7981637a1"
+});
 
-const CDN = {
-  cloud: "dlso5jnql",
-  preset: "VOTRE_UPLOAD_PRESET",
-};
+// ╔═══════════════════════════════════════╗
+// ║  CLOUDINARY CONFIG                    ║
+// ╚═══════════════════════════════════════╝
+var CDN_CLOUD  = "dlso5jnql";
+var CDN_PRESET = "VOTRE_UPLOAD_PRESET"; // Remplacez après création du preset
 
-const BACKEND = "https://f2kpay-backend.onrender.com";
-const ADMIN_EMAIL = "f2kmultiservice@gmail.com";
+// ╔═══════════════════════════════════════╗
+// ║  BACKEND RENDER                       ║
+// ╚═══════════════════════════════════════╝
+var BACKEND    = "https://f2kpay-backend.onrender.com";
+var ADMIN_EMAIL = "f2kmultiservice@gmail.com";
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+var auth = firebase.auth();
+var db   = firebase.firestore();
+var FS   = firebase.firestore.FieldValue;
 
-// Activer la persistance hors ligne
-db.enablePersistence().catch(() => {});
+var CU = null; // currentUser Firebase Auth
+var UD = null; // userData Firestore
+var LP = null; // linkPreview pour checkout
+var SK_VAL = "";
+var SK_VIS = false;
 
-let CU = null;
-let UD = null;
-let linkPreview = null;
+// ══════════════════════════════════════════
+//  LOADER — disparaît après 3s max
+// ══════════════════════════════════════════
+var loaderTimer = setTimeout(function(){
+  var l = document.getElementById("loader");
+  if (l && !l.classList.contains("hide")) {
+    l.classList.add("hide");
+    goPage("landing");
+  }
+}, 3000);
 
-// ══ UI HELPERS ══
-const pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
-window.goPage = id => {
-  pages.forEach(p => { const e=document.getElementById(p); e.classList.remove("on"); e.style.display="none"; });
-  document.querySelectorAll(".nl").forEach(n=>n.classList.remove("on"));
-  const el=document.getElementById(id);
-  el.classList.add("on"); el.style.display="block";
-  const map={landing:"nl-home","dash-pg":"nl-dash","admin-pg":"nl-admin"};
-  if(map[id]) document.getElementById(map[id])?.classList.add("on");
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+var PAGES = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
+
+function goPage(id) {
+  PAGES.forEach(function(p){
+    var e = document.getElementById(p);
+    e.classList.remove("on"); e.style.display = "none";
+  });
+  document.querySelectorAll(".nt").forEach(function(n){ n.classList.remove("on"); });
+  var el = document.getElementById(id);
+  el.classList.add("on"); el.style.display = "block";
+  var map = {landing:"nl-home","dash-pg":"nl-dash","admin-pg":"nl-admin"};
+  if (map[id]) { var nl = document.getElementById(map[id]); if(nl) nl.classList.add("on"); }
   window.scrollTo(0,0);
-};
-pages.forEach(p=>{ const e=document.getElementById(p); if(!e.classList.contains("on")) e.style.display="none"; });
+}
 
-window.showToast = (msg, type="ok") => {
-  const t=document.getElementById("toast");
-  t.textContent=msg; t.className=`toast ${type} show`;
-  setTimeout(()=>t.classList.remove("show"),3500);
-};
-window.openModal = id => {
-  if(id==="m-kyc") setupKYCModal();
+function showToast(msg, type) {
+  type = type || "ok";
+  var t = document.getElementById("toast");
+  t.textContent = msg; t.className = "toast " + type + " show";
+  setTimeout(function(){ t.classList.remove("show"); }, 3500);
+}
+
+function openModal(id) {
+  if (id === "m-kyc") loadKYCModal();
   document.getElementById(id).classList.add("show");
-};
-window.closeModal = id => document.getElementById(id).classList.remove("show");
+}
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 
-window.switchTab = (id,btn) => {
-  document.querySelectorAll("#dash-pg .tab-pane").forEach(p=>p.classList.remove("on"));
-  document.querySelectorAll("#dash-pg .tab-btn").forEach(b=>b.classList.remove("on"));
+function switchTab(id, btn) {
+  var container = btn.closest(".pg");
+  container.querySelectorAll(".tab-pane").forEach(function(p){ p.classList.remove("on"); });
+  container.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("on"); });
   document.getElementById(id).classList.add("on"); btn.classList.add("on");
-};
-window.switchAdTab = (id,btn) => {
-  document.querySelectorAll("#admin-pg .tab-pane").forEach(p=>p.classList.remove("on"));
-  document.querySelectorAll("#admin-pg .tab-btn").forEach(b=>b.classList.remove("on"));
-  document.getElementById(id).classList.add("on"); btn.classList.add("on");
-};
+}
 
-// ══ AUTH ══
-window.showAuth = mode => { goPage("auth-pg"); switchAuth(mode); };
-window.switchAuth = mode => {
-  document.getElementById("login-form").style.display=mode==="login"?"block":"none";
-  document.getElementById("reg-form").style.display=mode==="register"?"block":"none";
-  document.getElementById("at-login").classList.toggle("on",mode==="login");
-  document.getElementById("at-reg").classList.toggle("on",mode==="register");
-  document.getElementById("auth-sub").textContent=mode==="login"?"Connectez-vous à votre dashboard":"Créez votre compte marchand F2KPay";
-};
+function setBtnLoad(id, loading, defaultHTML) {
+  var b = document.getElementById(id);
+  if (!b) return;
+  b.disabled = loading;
+  if (loading) b.innerHTML = '<i class="ti ti-loader-2"></i> Patientez...';
+  else if (defaultHTML) b.innerHTML = defaultHTML;
+}
 
-window.doLogin = () => {
-  const email=document.getElementById("l-email").value.trim();
-  const pass=document.getElementById("l-pass").value;
-  if(!email||!pass) return showToast("Remplissez tous les champs","err");
-  const btn=document.getElementById("btn-login");
-  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Connexion...';
-  auth.signInWithEmailAndPassword(email,pass)
-    .catch(e=>{
-      let msg="Email ou mot de passe incorrect";
-      if(e.code==="auth/too-many-requests") msg="Trop de tentatives. Réessayez plus tard.";
-      if(e.code==="auth/network-request-failed") msg="Erreur réseau. Vérifiez votre connexion.";
-      if(e.code==="auth/user-not-found") msg="Aucun compte avec cet email.";
-      if(e.code==="auth/wrong-password") msg="Mot de passe incorrect.";
-      showToast(msg,"err");
-      btn.disabled=false;
-      btn.innerHTML='<i class="ti ti-login"></i> Se connecter';
-    });
-};
-
-window.doRegister = () => {
-  const fn=document.getElementById("r-fn").value.trim();
-  const ln=document.getElementById("r-ln").value.trim();
-  const email=document.getElementById("r-email").value.trim();
-  const phone=document.getElementById("r-phone").value.trim();
-  const pass=document.getElementById("r-pass").value;
-  if(!fn||!ln||!email||!pass) return showToast("Remplissez les champs obligatoires","err");
-  if(pass.length<8) return showToast("Mot de passe : minimum 8 caractères","err");
-  const btn=document.getElementById("btn-reg");
-  btn.disabled=true; btn.textContent="Création...";
-  auth.createUserWithEmailAndPassword(email,pass)
-    .then(cred=>{
-      return db.collection("users").doc(cred.user.uid).set({
-        uid:cred.user.uid, firstName:fn, lastName:ln, email, phone,
-        role:email===ADMIN_EMAIL?"admin":"merchant",
-        status:"active",
-        kycStatus:email===ADMIN_EMAIL?"approved":"none",
-        balance:0, commissionWallet:0,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    })
-    .then(()=>showToast("Compte créé !"))
-    .catch(e=>{
-      showToast(e.code==="auth/email-already-in-use"?"Email déjà utilisé":"Erreur : "+e.message,"err");
-      btn.disabled=false;
-      btn.innerHTML='<i class="ti ti-user-plus"></i> Créer mon compte';
-    });
-};
-
-window.doReset = () => {
-  const email=document.getElementById("l-email").value.trim();
-  if(!email) return showToast("Entrez votre email d'abord","warn");
-  auth.sendPasswordResetEmail(email)
-    .then(()=>showToast("Email de réinitialisation envoyé !"))
-    .catch(()=>showToast("Email introuvable","err"));
-};
-
-window.logout = () => {
-  auth.signOut().then(()=>{ goPage("landing"); showToast("Déconnexion réussie"); });
-};
-
-// ══ AUTH STATE OBSERVER ══
-auth.onAuthStateChanged(user=>{
-  clearTimeout(window._loaderTimeout);
+// ══════════════════════════════════════════
+//  AUTH STATE — Le cœur de l'application
+// ══════════════════════════════════════════
+auth.onAuthStateChanged(function(user) {
+  clearTimeout(loaderTimer);
   document.getElementById("loader").classList.add("hide");
-  const btnLogin=document.getElementById("btn-login");
-  if(btnLogin){btnLogin.disabled=false;btnLogin.innerHTML='<i class="ti ti-login"></i> Se connecter';}
+  // Réinitialiser le bouton login
+  var bl = document.getElementById("btn-login");
+  if (bl) { bl.disabled = false; bl.innerHTML = '<i class="ti ti-login"></i> Se connecter'; }
 
-  if(user){
-    CU=user;
+  if (user) {
+    CU = user;
     db.collection("users").doc(user.uid).get()
-      .then(async snap=>{
-        // Si le profil n'existe pas dans Firestore (compte créé avec ancien fichier)
-        // on le crée automatiquement
-        if(!snap.exists){
-          const email = user.email || "";
-          await db.collection("users").doc(user.uid).set({
+      .then(function(snap) {
+        if (!snap.exists) {
+          // Compte Auth sans profil Firestore — on crée le profil automatiquement
+          var email = user.email || "";
+          var defaultName = email.split("@")[0];
+          return db.collection("users").doc(user.uid).set({
             uid: user.uid,
-            firstName: user.displayName ? user.displayName.split(" ")[0] : email.split("@")[0],
-            lastName: user.displayName ? user.displayName.split(" ").slice(1).join(" ") : "",
+            firstName: defaultName,
+            lastName: "",
             email: email,
             phone: "",
             role: email === ADMIN_EMAIL ? "admin" : "merchant",
@@ -1145,1278 +757,613 @@ auth.onAuthStateChanged(user=>{
             kycStatus: email === ADMIN_EMAIL ? "approved" : "none",
             balance: 0,
             commissionWallet: 0,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: FS.serverTimestamp()
+          }).then(function() {
+            return db.collection("users").doc(user.uid).get();
           });
-          // Recharger le profil créé
-          return db.collection("users").doc(user.uid).get();
         }
         return snap;
       })
-      .then(snap=>{
-        UD=snap.data();
-        document.getElementById("nav-guest").style.display="none";
-        document.getElementById("nav-user").style.display="flex";
-        document.getElementById("nav-name").textContent=UD.firstName||"";
-        const initials=((UD.firstName||"?")[0]+(UD.lastName||"?")[0]).toUpperCase();
-        document.getElementById("nav-av").textContent=initials;
-        if(UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
-        if(UD.role==="admin"){
-          document.getElementById("nl-admin").style.display="flex";
-          document.getElementById("nl-dash").style.display="none";
+      .then(function(snap) {
+        UD = snap.data();
+        // Mettre à jour la nav
+        document.getElementById("nav-guest").style.display = "none";
+        document.getElementById("nav-user").style.display = "flex";
+        document.getElementById("nav-name").textContent = UD.firstName || "";
+        var init = ((UD.firstName||"U")[0] + (UD.lastName||"")[0]).toUpperCase().trim() || "U";
+        document.getElementById("nav-av").childNodes[0].nodeValue = init;
+        if (UD.kycStatus === "pending") document.getElementById("av-dot").style.display = "block";
+        // Rediriger selon le rôle
+        if (UD.role === "admin") {
+          document.getElementById("nl-admin").style.display = "flex";
+          document.getElementById("nl-dash").style.display = "none";
           goPage("admin-pg"); loadAdmin();
         } else {
-          if(UD.status==="disabled"){
+          if (UD.status === "disabled") {
             auth.signOut();
-            showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err");
+            showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com", "err");
             return goPage("landing");
           }
-          document.getElementById("nl-dash").style.display="flex";
-          document.getElementById("nl-admin").style.display="none";
+          document.getElementById("nl-dash").style.display = "flex";
+          document.getElementById("nl-admin").style.display = "none";
           goPage("dash-pg"); loadDash();
         }
       })
-      .catch(e=>{
-        console.error("Firestore get error:",e.code,e.message);
-        showToast("Erreur ("+e.code+") — réessayez","err");
-        auth.signOut();
-        goPage("auth-pg");
+      .catch(function(e) {
+        showToast("Erreur : " + e.message, "err");
+        auth.signOut(); goPage("auth-pg");
       });
   } else {
-    CU=null; UD=null;
-    document.getElementById("nav-guest").style.display="flex";
-    document.getElementById("nav-user").style.display="none";
-    document.getElementById("nl-dash").style.display="none";
-    document.getElementById("nl-admin").style.display="none";
+    CU = null; UD = null;
+    document.getElementById("nav-guest").style.display = "flex";
+    document.getElementById("nav-user").style.display = "none";
+    document.getElementById("nl-dash").style.display = "none";
+    document.getElementById("nl-admin").style.display = "none";
   }
 });
 
-// ══ DASHBOARD MARCHAND ══
-function loadDash(){
-  if(!CU) return;
-  document.getElementById("dash-hi").textContent=`Bonjour, ${UD.firstName} 👋`;
-  document.getElementById("dash-date").textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  updateKYCBanner(UD.kycStatus);
-  const wlocked=document.getElementById("wd-locked"),wform=document.getElementById("wd-form");
-  if(UD.kycStatus==="approved"){wlocked.style.display="none";wform.style.display="block";}
-  else{wlocked.style.display="block";wform.style.display="none";}
-
-  db.collection("paymentLinks").where("uid","==",CU.uid).orderBy("createdAt","desc").get()
-    .then(ls=>{ const links=[]; ls.forEach(d=>links.push({id:d.id,...d.data()}));
-      document.getElementById("m-lnk").textContent=links.filter(l=>l.isActive).length;
-      renderLinks(links);
-    }).catch(e=>console.error("links:",e));
-
-  db.collection("transactions").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
-    .then(ts=>{ const txs=[]; ts.forEach(d=>txs.push({id:d.id,...d.data()}));
-      renderTx(txs);
-      const rev=txs.filter(t=>t.status==="success").reduce((s,t)=>s+(t.amount||0),0);
-      document.getElementById("m-rev").textContent=rev.toLocaleString();
-      document.getElementById("m-tx").textContent=txs.length;
-    }).catch(e=>console.error("txs:",e));
-
-  db.collection("users").doc(CU.uid).get()
-    .then(fs=>{ document.getElementById("m-bal").textContent=(fs.data()?.balance||0).toLocaleString(); })
-    .catch(e=>console.error("balance:",e));
-
-  db.collection("withdrawals").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
-    .then(ws=>{ const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()})); renderWD(wds); })
-    .catch(e=>console.error("withdrawals:",e));
-
-  loadAPIKeys();
-  renderChart();
-}
-
-function updateKYCBanner(status){
-  const b=document.getElementById("kyc-banner");
-  const icons={none:"⚠️",pending:"⏳",approved:"✅",rejected:"❌"};
-  const titles={none:"KYC requis",pending:"KYC en examen",approved:"KYC approuvé",rejected:"KYC rejeté"};
-  const texts={none:"Soumettez vos documents pour activer les retraits.",pending:"Vos documents sont en cours de vérification (24-48h).",approved:"Votre identité est vérifiée. Retraits activés.",rejected:"Documents rejetés. Soumettez-en de nouveaux."};
-  b.className=`kyc-banner ${status||"none"}`;
-  document.getElementById("kb-icon").textContent=icons[status]||"⚠️";
-  document.getElementById("kb-title").textContent=titles[status]||"KYC requis";
-  document.getElementById("kb-text").textContent=texts[status]||"";
-  const btn=document.getElementById("kb-btn");
-  if(status==="approved") btn.style.display="none";
-  else{btn.style.display="";btn.textContent=status==="pending"?"Voir mon KYC":"Soumettre";}
-}
-
-function renderLinks(links){
-  const tb=document.getElementById("tb-links");
-  if(!links.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr>`;return;}
-  tb.innerHTML=links.map(l=>`<tr>
-    <td><strong style="font-size:12px">${l.name}</strong></td>
-    <td><strong style="color:var(--gd)">${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}</strong></td>
-    <td><span class="badge ${l.isActive?'b-ok':'b-grey'}">${l.isActive?'Actif':'Inactif'}</span></td>
-    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn-xs bx-g" onclick="prevLink('${l.id}')">👁</button>
-      <button class="btn-xs bx-grey" onclick="copyLink('${l.slug}')">📋</button>
-      <button class="btn-xs bx-r" onclick="togLink('${l.id}',${l.isActive})">${l.isActive?'Off':'On'}</button>
-    </div></td>
-  </tr>`).join("");
-}
-
-function renderTx(txs){
-  const tb=document.getElementById("tb-tx");
-  if(!txs.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr>`;return;}
-  tb.innerHTML=txs.map(t=>`<tr>
-    <td>${t.customerName||'—'}</td>
-    <td><strong>${(t.amount||0).toLocaleString()} ${t.currency||'XOF'}</strong></td>
-    <td>${t.method||'—'}</td>
-    <td>${t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><span class="badge ${t.status==='success'?'b-ok':t.status==='pending'?'b-wait':'b-ko'}">${t.status==='success'?'✓':t.status==='pending'?'⏳':'✗'}</span></td>
-  </tr>`).join("");
-}
-
-function renderWD(wds){
-  const tb=document.getElementById("tb-wd");
-  if(!wds.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr>`;return;}
-  tb.innerHTML=wds.map(w=>`<tr>
-    <td>${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><strong>${(w.amount||0).toLocaleString()} XOF</strong></td>
-    <td style="font-size:11px">${w.method||'—'}</td>
-    <td><span class="badge ${w.status==='approved'?'b-ok':w.status==='pending'?'b-wait':'b-ko'}">${w.status==='approved'?'✓ Approuvé':w.status==='pending'?'⏳ Attente':'✗ Rejeté'}</span></td>
-  </tr>`).join("");
-}
-
-function renderChart(){
-  const days=["L","M","M","J","V","S","D"],vals=[42,68,38,82,57,95,74],mx=Math.max(...vals);
-  const ch=document.getElementById("chart");
-  if(ch) ch.innerHTML=days.map((d,i)=>`<div class="bg2"><div class="bb${i===5?" hi":""}" style="height:${Math.round((vals[i]/mx)*64)}px"></div><div class="bbl">${d}</div></div>`).join("");
-}
-
-// ══ ACTIONS MARCHANDS ══
-window.prevLink = id => {
-  db.collection("paymentLinks").doc(id).get().then(s=>{
-    if(!s.exists) return;
-    const l=s.data(); linkPreview={id,...l};
-    document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
-    document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
-    document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
-    document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
-    document.getElementById("co-desc").textContent=l.description||l.name;
-    document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
-    goPage("checkout-pg");
-  });
-};
-
-window.copyLink = slug => {
-  navigator.clipboard.writeText(`${location.origin}${location.pathname}?pay=${slug}`).catch(()=>{});
-  showToast("Lien copié !");
-};
-
-window.togLink = (id,active) => {
-  db.collection("paymentLinks").doc(id).update({isActive:!active})
-    .then(()=>{ showToast(!active?"Activé":"Désactivé"); loadDash(); })
-    .catch(e=>showToast("Erreur : "+e.message,"err"));
-};
-
-window.createLink = () => {
-  if(!CU||!UD) return showToast("Reconnectez-vous","err");
-  const name=document.getElementById("cl-name").value.trim();
-  const amt=document.getElementById("cl-amt").value;
-  const cur=document.getElementById("cl-cur").value;
-  const desc=document.getElementById("cl-desc").value.trim();
-  const redir=document.getElementById("cl-redir").value.trim();
-  if(!name||!amt) return showToast("Nom et montant requis","err");
-  if(Number(amt)<100) return showToast("Montant minimum : 100","err");
-  const btn=document.getElementById("btn-cl");
-  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Création...';
-  const slug=name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
-  db.collection("paymentLinks").add({
-    uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`,
-    name, amount:Number(amt), currency:cur, description:desc, redirectUrl:redir,
-    slug, isActive:true, paymentCount:0,
-    paymentUrl:`${location.origin}${location.pathname}?pay=${slug}`,
-    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-  }).then(()=>{
-    closeModal("m-link");
-    showToast("Lien créé !");
-    ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(id=>document.getElementById(id).value="");
-    loadDash();
-  }).catch(e=>{
-    showToast("Erreur : "+e.message,"err");
-  }).finally(()=>{
-    btn.disabled=false; btn.innerHTML='<i class="ti ti-link"></i> Créer le lien';
-  });
-};
-
-window.submitWithdrawal = () => {
-  if(!CU||UD?.kycStatus!=="approved") return showToast("KYC requis pour retirer","err");
-  const amt=Number(document.getElementById("wd-amt").value);
-  const meth=document.getElementById("wd-meth").value;
-  const phone=document.getElementById("wd-phone").value.trim();
-  if(!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
-  if(!phone) return showToast("Entrez un numéro de réception","err");
-  db.collection("users").doc(CU.uid).get().then(fs=>{
-    const bal=fs.data()?.balance||0;
-    if(amt>bal) return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`,"err");
-    return db.collection("withdrawals").add({
-      merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
-      amount:amt, method:meth, phone, status:"pending", type:"merchant",
-      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-    });
-  }).then(()=>{
-    showToast("Demande soumise — l'admin validera sous 24h.");
-    document.getElementById("wd-amt").value="";
-    document.getElementById("wd-phone").value="";
-    loadDash();
-  }).catch(e=>showToast("Erreur : "+e.message,"err"));
-};
-
-// ══ KYC ══
-async function setupKYCModal(){
-  if(!CU) return;
-  const snap=await db.collection("kyc").doc(CU.uid).get();
-  const kyc=snap.exists?snap.data():null;
-  const sb=document.getElementById("kyc-status-box"),kf=document.getElementById("kyc-form");
-  if(kyc&&kyc.status!=="rejected"){
-    sb.style.display="block";
-    sb.className=`info-box ${kyc.status==="approved"?"success":"warn"}`;
-    sb.innerHTML=`<i class="ti ti-${kyc.status==="approved"?"check":"clock"}" style="vertical-align:-2px;margin-right:5px"></i>${kyc.status==="approved"?"✅ KYC approuvé.":"⏳ Documents en cours de vérification."}`;
-    kf.style.display=kyc.status==="approved"?"none":"block";
-  } else{sb.style.display="none";kf.style.display="block";}
-}
-
-window.prevFile = (input,prevId) => {
-  const p=document.getElementById(prevId); p.innerHTML="";
-  if(input.files?.[0]){const img=document.createElement("img");img.className="up-thumb";img.src=URL.createObjectURL(input.files[0]);p.appendChild(img);}
-};
-
-async function uploadCDN(file){
-  const fd=new FormData();
-  fd.append("file",file); fd.append("upload_preset",CDN.preset); fd.append("folder","f2kpay-kyc");
-  const res=await fetch(`https://api.cloudinary.com/v1_1/${CDN.cloud}/image/upload`,{method:"POST",body:fd});
-  const d=await res.json();
-  if(d.error) throw new Error(d.error.message);
-  return d.secure_url;
-}
-
-window.submitKYC = async () => {
-  const f=document.getElementById("kyc-f").files[0],b=document.getElementById("kyc-b").files[0],s=document.getElementById("kyc-s").files[0];
-  const type=document.getElementById("kyc-type").value;
-  if(!f||!b||!s) return showToast("Uploadez les 3 documents requis","err");
-  const btn=document.getElementById("btn-kyc");
-  btn.disabled=true; btn.textContent="Upload en cours...";
-  try{
-    const[fu,bu,su]=await Promise.all([uploadCDN(f),uploadCDN(b),uploadCDN(s)]);
-    await db.collection("kyc").doc(CU.uid).set({
-      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
-      docType:type, frontUrl:fu, backUrl:bu, selfieUrl:su,
-      status:"pending", submittedAt:firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    await db.collection("users").doc(CU.uid).update({kycStatus:"pending"});
-    UD.kycStatus="pending";
-    updateKYCBanner("pending");
-    document.getElementById("av-dot").style.display="block";
-    closeModal("m-kyc");
-    showToast("Documents soumis ! Réponse sous 48h.");
-  }catch(e){showToast("Erreur upload : "+e.message,"err");}
-  btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Soumettre mes documents';
-};
-
-// ══ ADMIN ══
-function loadAdmin(){
-  db.collection("users").where("email","==",ADMIN_EMAIL).get().then(as=>{
-    if(!as.empty){ const ad=as.docs[0].data(); document.getElementById("a-commission").textContent=(ad.commissionWallet||0).toLocaleString(); }
-  });
-  db.collection("users").where("role","==","merchant").get().then(ms=>{
-    const merch=[]; ms.forEach(d=>merch.push({id:d.id,...d.data()}));
-    document.getElementById("a-merch").textContent=merch.filter(m=>m.status==="active").length;
-    renderAdminMerch(merch);
-  });
-  db.collection("kyc").where("status","==","pending").get().then(ks=>{
-    const kycs=[]; ks.forEach(d=>kycs.push({id:d.id,...d.data()}));
-    document.getElementById("a-kyc").textContent=kycs.length;
-    renderAdminKYC(kycs);
-  });
-  db.collection("withdrawals").where("status","==","pending").where("type","==","merchant").get().then(ws=>{
-    const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
-    document.getElementById("a-wd").textContent=wds.length;
-    renderAdminWD(wds);
-  });
-}
-
-function renderAdminMerch(list){
-  const tb=document.getElementById("atb-merch");
-  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr>`;return;}
-  tb.innerHTML=list.map(m=>`<tr>
-    <td><div class="td-user"><div class="u-av">${(m.firstName||"?")[0]}${(m.lastName||"?")[0]}</div><div><div style="font-weight:500;font-size:12px">${m.firstName} ${m.lastName}</div><div style="font-size:10px;color:var(--hi)">${m.phone||""}</div></div></div></td>
-    <td style="font-size:11px"><a href="mailto:${m.email}" style="color:var(--g)">${m.email}</a></td>
-    <td><span class="badge ${m.kycStatus==="approved"?"b-ok":m.kycStatus==="pending"?"b-wait":m.kycStatus==="rejected"?"b-ko":"b-grey'}">${m.kycStatus==="approved"?"✓ OK":m.kycStatus==="pending"?"⏳":m.kycStatus==="rejected"?"✗":"—"}</span></td>
-    <td><span class="badge ${m.status==="active"?"b-ok":"b-ko'}">${m.status==="active"?"Actif":"Désactivé"}</span></td>
-    <td style="font-size:11px;font-weight:600">${(m.balance||0).toLocaleString()} XOF</td>
-    <td><div class="td-actions">
-      <button class="btn-xs ${m.status==="active"?"bx-r":"bx-g"}" onclick="togMerch('${m.id}','${m.status}')">${m.status==="active"?"Désact.":"Activer"}</button>
-      <button class="btn-xs bx-r" onclick="delMerch('${m.id}','${m.firstName}')">Suppr.</button>
-    </div></td>
-  </tr>`).join("");
-}
-
-function renderAdminKYC(kycs){
-  const tb=document.getElementById("atb-kyc");
-  if(!kycs.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr>`;return;}
-  tb.innerHTML=kycs.map(k=>`<tr>
-    <td><div style="font-size:12px;font-weight:500">${k.merchantName}</div><div style="font-size:10px;color:var(--hi)">${k.merchantEmail}</div></td>
-    <td><div style="display:flex;gap:5px">
-      <img src="${k.frontUrl}" class="kyc-thumb" alt="Recto" onclick="viewDoc('${k.frontUrl}','Recto · ${k.merchantName}','Pièce : ${k.docType}')">
-      <img src="${k.backUrl}" class="kyc-thumb" alt="Verso" onclick="viewDoc('${k.backUrl}','Verso · ${k.merchantName}','Pièce : ${k.docType}')">
-      <img src="${k.selfieUrl}" class="kyc-thumb" alt="Selfie" onclick="viewDoc('${k.selfieUrl}','Selfie · ${k.merchantName}','Selfie')">
-    </div></td>
-    <td style="font-size:11px">${k.submittedAt?.toDate?k.submittedAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><div class="td-actions">
-      <button class="btn-xs bx-g" onclick="apprKYC('${k.uid}')">✅ Approuver</button>
-      <button class="btn-xs bx-r" onclick="rejKYC('${k.uid}')">❌ Rejeter</button>
-    </div></td>
-  </tr>`).join("");
-}
-
-function renderAdminWD(wds){
-  const tb=document.getElementById("atb-wd");
-  if(!wds.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr>`;return;}
-  tb.innerHTML=wds.map(w=>`<tr>
-    <td><div style="font-size:12px;font-weight:500">${w.merchantName}</div><div style="font-size:10px;color:var(--hi)">${w.merchantEmail}</div></td>
-    <td><strong style="color:var(--gd)">${(w.amount||0).toLocaleString()} XOF</strong></td>
-    <td style="font-size:11px"><code>${w.phone||'—'}</code></td>
-    <td style="font-size:11px">${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><div class="td-actions">
-      <button class="btn-xs bx-g" onclick="apprWD('${w.id}','${w.merchantId}',${w.amount})">✅ Approuver</button>
-      <button class="btn-xs bx-r" onclick="rejWD('${w.id}')">❌ Rejeter</button>
-    </div></td>
-  </tr>`).join("");
-}
-
-window.togMerch = (uid,status) => {
-  db.collection("users").doc(uid).update({status:status==="active"?"disabled":"active"})
-    .then(()=>{ showToast(status==="active"?"Compte désactivé":"Compte activé"); loadAdmin(); });
-};
-window.delMerch = (uid,name) => {
-  if(!confirm(`Supprimer le compte de ${name} ?`)) return;
-  db.collection("users").doc(uid).update({status:"deleted",deletedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>{ showToast(`${name} supprimé`); loadAdmin(); });
-};
-window.viewDoc = (url,title,sub) => {
-  document.getElementById("doc-img").src=url;
-  document.getElementById("doc-title").textContent=title;
-  document.getElementById("doc-sub").textContent=sub;
-  document.getElementById("m-doc").classList.add("show");
-};
-window.apprKYC = uid => {
-  db.collection("kyc").doc(uid).update({status:"approved",reviewedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>db.collection("users").doc(uid).update({kycStatus:"approved"}))
-    .then(()=>{ showToast("KYC approuvé ✅"); loadAdmin(); });
-};
-window.rejKYC = uid => {
-  const r=prompt("Raison du rejet :"); if(r===null) return;
-  db.collection("kyc").doc(uid).update({status:"rejected",rejectionReason:r,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>db.collection("users").doc(uid).update({kycStatus:"rejected"}))
-    .then(()=>{ showToast("KYC rejeté"); loadAdmin(); });
-};
-window.apprWD = (wid,mid,amt) => {
-  if(!confirm(`Approuver ${amt.toLocaleString()} XOF ?`)) return;
-  db.collection("withdrawals").doc(wid).update({status:"approved",approvedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>db.collection("users").doc(mid).get())
-    .then(fs=>db.collection("users").doc(mid).update({balance:Math.max(0,(fs.data()?.balance||0)-amt)}))
-    .then(()=>{ showToast("Retrait approuvé ✅"); loadAdmin(); });
-};
-window.rejWD = wid => {
-  const r=prompt("Raison du rejet :"); if(r===null) return;
-  db.collection("withdrawals").doc(wid).update({status:"rejected",rejectionReason:r,rejectedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>{ showToast("Rejeté"); loadAdmin(); });
-};
-window.adminWithdrawal = () => {
-  const amt=Number(document.getElementById("adm-amt").value);
-  const meth=document.getElementById("adm-meth").value;
-  const phone=document.getElementById("adm-phone").value.trim();
-  const note=document.getElementById("adm-note").value.trim();
-  if(!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
-  if(!phone) return showToast("Entrez un numéro","err");
-  db.collection("withdrawals").add({
-    merchantId:CU.uid, merchantName:"ADMIN F2KPay", merchantEmail:"f2kmultiservice@gmail.com",
-    amount:amt, method:meth, phone, note, status:"approved", type:"admin",
-    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-  }).then(()=>{ showToast("Demande envoyée à Moneroo ✅"); document.getElementById("adm-amt").value=""; document.getElementById("adm-phone").value=""; });
-};
-
-// ══ CHECKOUT ══
-window.swCo = (btn,tab) => {
-  document.querySelectorAll(".ct").forEach(t=>t.classList.remove("on")); btn.classList.add("on");
-  document.getElementById("co-mob").style.display=tab==="co-mob"?"block":"none";
-  document.getElementById("co-card").style.display=tab==="co-card"?"block":"none";
-};
-window.selPM = el => { document.querySelectorAll(".pm").forEach(m=>m.classList.remove("sel")); el.classList.add("sel"); };
-window.doPay = () => {
-  const name=document.getElementById("co-name").value.trim();
-  const email=document.getElementById("co-email").value.trim();
-  if(!name||!email) return showToast("Remplissez nom et email","err");
-  document.getElementById("co-body").style.display="none";
-  document.getElementById("co-proc").style.display="block";
-  const MONEROO_FEE=0.025, F2KPAY_FEE=0.02;
-  const MERCHANT_RATE=1-MONEROO_FEE-F2KPAY_FEE;
-  const ref=`F2K-${Date.now().toString(36).toUpperCase()}`;
-  const doSave = linkPreview
-    ? db.collection("transactions").add({
-        merchantId:linkPreview.uid, linkId:linkPreview.id,
-        customerName:name, customerEmail:email,
-        amount:linkPreview.amount, currency:linkPreview.currency||"XOF",
-        method:"Mobile Money", status:"success", reference:ref,
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-      }).then(()=>db.collection("users").doc(linkPreview.uid).get())
-        .then(fs=>db.collection("users").doc(linkPreview.uid).update({
-          balance:(fs.data()?.balance||0)+Math.floor(linkPreview.amount*MERCHANT_RATE)
-        }))
-        .then(()=>db.collection("users").where("email","==",ADMIN_EMAIL).get())
-        .then(as=>{
-          if(!as.empty){
-            const ad=as.docs[0];
-            return db.collection("users").doc(ad.id).update({
-              commissionWallet:(ad.data()?.commissionWallet||0)+Math.floor(linkPreview.amount*F2KPAY_FEE)
-            });
-          }
-        })
-    : Promise.resolve();
-
-  setTimeout(()=>{
-    doSave.then(()=>{
-      document.getElementById("co-proc").style.display="none";
-      document.getElementById("co-succ").style.display="block";
-      document.getElementById("co-ref").textContent=`Réf: ${ref} · Sécurisé par F2KPay`;
-    }).catch(()=>{
-      document.getElementById("co-proc").style.display="none";
-      document.getElementById("co-err").style.display="block";
-    });
-  },2600);
-};
-window.resetCo = () => {
-  document.getElementById("co-body").style.display="block";
-  ["co-proc","co-succ","co-err"].forEach(id=>document.getElementById(id).style.display="none");
-};
-
-// ══ API KEYS ══
-let skVisible=false, currentSK="";
-function genKey(prefix){ let k=prefix+"_"; const c="abcdefghijklmnopqrstuvwxyz0123456789"; for(let i=0;i<32;i++) k+=c[Math.floor(Math.random()*c.length)]; return k; }
-window.generateAPIKeys = () => {
-  if(!CU) return;
-  const btn=document.getElementById("btn-gen-keys"),txt=document.getElementById("gen-keys-txt");
-  btn.disabled=true; txt.textContent="Génération...";
-  const pk=genKey("pk_live"),sk=genKey("sk_live");
-  db.collection("apiKeys").doc(CU.uid).set({
-    uid:CU.uid, publicKey:pk, secretKey:sk, webhookUrl:"",
-    webhookEvents:["payment.success","payment.failed"],
-    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-  }).then(()=>{ displayAPIKeys(pk,sk); showToast("Clés API générées !"); })
-    .finally(()=>{ btn.disabled=false; txt.textContent="Régénérer les clés"; });
-};
-function displayAPIKeys(pk,sk){
-  document.getElementById("api-pk").textContent=pk;
-  currentSK=sk;
-  document.getElementById("api-sk").textContent="••••••••••••••••••••••••••••••••••••";
-  document.getElementById("api-sk-real").textContent=sk;
-  skVisible=false;
-  document.getElementById("gen-keys-txt").textContent="Régénérer les clés";
-}
-window.toggleSK = () => {
-  skVisible=!skVisible;
-  document.getElementById("api-sk").textContent=skVisible?currentSK:"••••••••••••••••••••••••••••••••••••";
-  document.getElementById("btn-toggle-sk").innerHTML=`<i class="ti ti-${skVisible?"eye-off":"eye"}" style="font-size:13px"></i>`;
-};
-window.copyKey = id => {
-  const el=document.getElementById(id);
-  const text=el.textContent;
-  if(!text||text.startsWith("•")||text==="Générez vos clés ci-dessous") return showToast("Générez d'abord vos clés","warn");
-  navigator.clipboard.writeText(text).catch(()=>{});
-  showToast("Clé copiée !");
-};
-window.revokeAPIKeys = () => {
-  if(!CU||!confirm("Révoquer vos clés API ?")) return;
-  db.collection("apiKeys").doc(CU.uid).update({publicKey:"REVOKED",secretKey:"REVOKED",updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
-    .then(()=>{ document.getElementById("api-pk").textContent="Clés révoquées — Régénérez"; document.getElementById("api-sk").textContent="••••••••••••••••••••"; currentSK=""; document.getElementById("gen-keys-txt").textContent="Générer mes clés API"; showToast("Clés révoquées"); });
-};
-window.saveWebhook = () => {
-  if(!CU) return;
-  const url=document.getElementById("webhook-url").value.trim();
-  if(url&&!url.startsWith("http")) return showToast("URL invalide","err");
-  const events=[];
-  if(document.getElementById("wh-success").checked) events.push("payment.success");
-  if(document.getElementById("wh-failed").checked) events.push("payment.failed");
-  if(document.getElementById("wh-refund").checked) events.push("payment.refunded");
-  db.collection("apiKeys").doc(CU.uid).set({uid:CU.uid,webhookUrl:url,webhookEvents:events,publicKey:"",secretKey:"",createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})
-    .then(()=>showToast("Webhook enregistré !"));
-};
-window.switchCodeTab = (id,btn) => {
-  document.querySelectorAll(".code-pane").forEach(p=>p.classList.remove("on"));
-  document.querySelectorAll("#t-api .tab-btn").forEach(b=>b.classList.remove("on"));
-  document.getElementById(id).classList.add("on"); btn.classList.add("on");
-};
-function loadAPIKeys(){
-  if(!CU) return;
-  db.collection("apiKeys").doc(CU.uid).get().then(snap=>{
-    if(!snap.exists) return;
-    const d=snap.data();
-    if(d.publicKey&&d.publicKey!=="REVOKED") displayAPIKeys(d.publicKey,d.secretKey);
-    if(d.webhookUrl) document.getElementById("webhook-url").value=d.webhookUrl;
-    if(d.webhookEvents){
-      document.getElementById("wh-success").checked=d.webhookEvents.includes("payment.success");
-      document.getElementById("wh-failed").checked=d.webhookEvents.includes("payment.failed");
-      document.getElementById("wh-refund").checked=d.webhookEvents.includes("payment.refunded");
-    }
-  }).catch(()=>{});
-}
-
-// ══ ROUTING (liens publics ?pay=slug) ══
-(()=>{
-  const slug=new URLSearchParams(location.search).get("pay");
-  if(!slug) return;
-  db.collection("paymentLinks").where("slug","==",slug).where("isActive","==",true).get()
-    .then(s=>{
-      if(s.empty){ showToast("Lien introuvable ou désactivé","err"); return; }
-      const l=s.docs[0].data(); linkPreview={id:s.docs[0].id,...l};
-      document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
-      document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
-      document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
-      document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
-      document.getElementById("co-desc").textContent=l.description||l.name;
-      document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
-      document.querySelector("nav").style.display="none";
-      goPage("checkout-pg");
-    });
-})();
-</script>
-
-// ╔══════════════════════════════════════╗
-// ║  FIREBASE CONFIG — À remplacer       ║
-// ╚══════════════════════════════════════╝
-const firebaseConfig = {
-  apiKey: "AIzaSyBHKolLJdXsK1THnzr79Gb8stD_GUZDfQg",
-  authDomain: "f2k-pay.firebaseapp.com",
-  projectId: "f2k-pay",
-  storageBucket: "f2k-pay.firebasestorage.app",
-  messagingSenderId: "593460943860",
-  appId: "1:593460943860:web:940b6c6b0d74d7981637a1",
-  measurementId: "G-XEQ9TF9NRH"
-};
-
-// ╔══════════════════════════════════════╗
-// ║  CLOUDINARY CONFIG — À remplacer     ║
-// ╚══════════════════════════════════════╝
-const CDN = {
-  cloud: "dlso5jnql",       // cloud name Cloudinary
-  preset: "VOTRE_UPLOAD_PRESET",   // ex: "f2kpay_kyc" (unsigned preset)
-};
-
-// ╔══════════════════════════════════════╗
-// ║  BACKEND URL — URL Render            ║
-// ╚══════════════════════════════════════╝
-const BACKEND = "https://f2kpay-backend.onrender.com";
-const ADMIN_EMAIL = "f2kmultiservice@gmail.com";
-
-// ── INIT ─────────────────────────────────────────────────
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-let CU = null; // currentUser Firebase
-let UD = null; // userData Firestore
-let linkPreview = null;
-
 // ══════════════════════════════════════════
-//  UI HELPERS
+//  AUTH FUNCTIONS
 // ══════════════════════════════════════════
-const pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
-window.goPage = id => {
-  pages.forEach(p => { const e = document.getElementById(p); e.classList.remove("on"); e.style.display = "none"; });
-  document.querySelectorAll(".nl").forEach(n => n.classList.remove("on"));
-  const el = document.getElementById(id);
-  el.classList.add("on"); el.style.display = "block";
-  const map = {landing:"nl-home","dash-pg":"nl-dash","admin-pg":"nl-admin"};
-  if (map[id]) document.getElementById(map[id])?.classList.add("on");
-  window.scrollTo(0,0);
-};
-pages.forEach(p => { const e = document.getElementById(p); if (!e.classList.contains("on")) e.style.display="none"; });
+function showAuth(mode) { goPage("auth-pg"); switchAuth(mode); }
 
-window.showToast = (msg, type="ok") => {
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.className = `toast ${type} show`;
-  setTimeout(() => t.classList.remove("show"), 3500);
-};
-window.openModal = id => document.getElementById(id).classList.add("show");
-window.closeModal = id => document.getElementById(id).classList.remove("show");
+function switchAuth(mode) {
+  document.getElementById("f-login").style.display = mode === "login" ? "block" : "none";
+  document.getElementById("f-reg").style.display = mode === "register" ? "block" : "none";
+  document.getElementById("at-login").classList.toggle("on", mode === "login");
+  document.getElementById("at-reg").classList.toggle("on", mode === "register");
+  document.getElementById("auth-sub").textContent = mode === "login"
+    ? "Connectez-vous à votre dashboard"
+    : "Créez votre compte marchand F2KPay";
+}
 
-window.switchTab = (id, btn) => {
-  document.querySelectorAll("#dash-pg .tab-pane").forEach(p => p.classList.remove("on"));
-  document.querySelectorAll("#dash-pg .tab-btn").forEach(b => b.classList.remove("on"));
-  document.getElementById(id).classList.add("on"); btn.classList.add("on");
-};
-window.switchAdTab = (id, btn) => {
-  document.querySelectorAll("#admin-pg .tab-pane").forEach(p => p.classList.remove("on"));
-  document.querySelectorAll("#admin-pg .tab-btn").forEach(b => b.classList.remove("on"));
-  document.getElementById(id).classList.add("on"); btn.classList.add("on");
-};
-
-// ══════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════
-window.showAuth = mode => { goPage("auth-pg"); switchAuth(mode); };
-window.switchAuth = mode => {
-  document.getElementById("login-form").style.display = mode==="login"?"block":"none";
-  document.getElementById("reg-form").style.display = mode==="register"?"block":"none";
-  document.getElementById("at-login").classList.toggle("on", mode==="login");
-  document.getElementById("at-reg").classList.toggle("on", mode==="register");
-  document.getElementById("auth-sub").textContent = mode==="login" ? "Connectez-vous à votre dashboard" : "Créez votre compte marchand F2KPay";
-};
-
-window.doLogin = async () => {
-  const email = document.getElementById("l-email").value.trim();
-  const pass = document.getElementById("l-pass").value;
-  if (!email||!pass) return showToast("Remplissez tous les champs","err");
-  const btn = document.getElementById("btn-login");
-  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Connexion...';
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-    // onAuthStateChanged prend le relais automatiquement
-  } catch(e) {
-    let msg = "Email ou mot de passe incorrect";
-    if (e.code === "auth/too-many-requests") msg = "Trop de tentatives. Réessayez dans quelques minutes.";
-    if (e.code === "auth/network-request-failed") msg = "Erreur réseau. Vérifiez votre connexion.";
-    if (e.code === "auth/user-not-found") msg = "Aucun compte avec cet email.";
-    if (e.code === "auth/wrong-password") msg = "Mot de passe incorrect.";
-    showToast(msg,"err");
-    btn.disabled=false;
-    btn.innerHTML='<i class="ti ti-login"></i> Se connecter';
-  }
-};
-
-window.doRegister = async () => {
-  const fn=document.getElementById("r-fn").value.trim(), ln=document.getElementById("r-ln").value.trim();
-  const email=document.getElementById("r-email").value.trim(), phone=document.getElementById("r-phone").value.trim();
-  const pass=document.getElementById("r-pass").value;
-  if (!fn||!ln||!email||!pass) return showToast("Remplissez les champs obligatoires","err");
-  if (pass.length<8) return showToast("Mot de passe : minimum 8 caractères","err");
-  const btn=document.getElementById("btn-reg");
-  btn.disabled=true; btn.textContent="Création...";
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    await setDoc(doc(db,"users",cred.user.uid), {
-      uid:cred.user.uid, firstName:fn, lastName:ln, email, phone,
-      role: email===ADMIN_EMAIL?"admin":"merchant",
-      status:"active",
-      kycStatus: email===ADMIN_EMAIL?"approved":"none", // admin approuvé d'office
-      balance:0,
-      commissionWallet:0,
-      createdAt: serverTimestamp(),
+function doLogin() {
+  var email = document.getElementById("l-email").value.trim();
+  var pass  = document.getElementById("l-pass").value;
+  if (!email || !pass) return showToast("Remplissez tous les champs", "err");
+  setBtnLoad("btn-login", true);
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(function(e) {
+      var msg = "Email ou mot de passe incorrect";
+      if (e.code === "auth/too-many-requests") msg = "Trop de tentatives. Réessayez plus tard.";
+      if (e.code === "auth/network-request-failed") msg = "Erreur réseau. Vérifiez votre connexion.";
+      showToast(msg, "err");
+      setBtnLoad("btn-login", false, '<i class="ti ti-login"></i> Se connecter');
     });
-    showToast("Compte créé !");
-  } catch(e) {
-    showToast(e.message.includes("email-already")?"Email déjà utilisé":"Erreur création","err");
-    btn.disabled=false; btn.innerHTML='<i class="ti ti-user-plus"></i> Créer mon compte';
-  }
-};
+}
 
-window.doReset = async () => {
-  const email=document.getElementById("l-email").value.trim();
-  if (!email) return showToast("Entrez votre email d'abord","warn");
-  try { await sendPasswordResetEmail(auth,email); showToast("Email de réinitialisation envoyé !"); }
-  catch { showToast("Email introuvable","err"); }
-};
+function doRegister() {
+  var fn    = document.getElementById("r-fn").value.trim();
+  var ln    = document.getElementById("r-ln").value.trim();
+  var email = document.getElementById("r-email").value.trim();
+  var phone = document.getElementById("r-phone").value.trim();
+  var pass  = document.getElementById("r-pass").value;
+  if (!fn || !ln || !email || !pass) return showToast("Remplissez les champs obligatoires", "err");
+  if (pass.length < 8) return showToast("Mot de passe : minimum 8 caractères", "err");
+  setBtnLoad("btn-reg", true);
+  auth.createUserWithEmailAndPassword(email, pass)
+    .then(function(cred) {
+      return db.collection("users").doc(cred.user.uid).set({
+        uid: cred.user.uid, firstName: fn, lastName: ln, email: email, phone: phone,
+        role: email === ADMIN_EMAIL ? "admin" : "merchant",
+        status: "active",
+        kycStatus: email === ADMIN_EMAIL ? "approved" : "none",
+        balance: 0, commissionWallet: 0,
+        createdAt: FS.serverTimestamp()
+      });
+    })
+    .then(function() { showToast("Compte créé !"); })
+    .catch(function(e) {
+      var msg = e.code === "auth/email-already-in-use" ? "Email déjà utilisé" : "Erreur : " + e.message;
+      showToast(msg, "err");
+      setBtnLoad("btn-reg", false, '<i class="ti ti-user-plus"></i> Créer mon compte');
+    });
+}
 
-window.logout = async () => { await signOut(auth); goPage("landing"); showToast("Déconnexion réussie"); };
+function doReset() {
+  var email = document.getElementById("l-email").value.trim();
+  if (!email) return showToast("Entrez votre email d'abord", "warn");
+  auth.sendPasswordResetEmail(email)
+    .then(function() { showToast("Email de réinitialisation envoyé !"); })
+    .catch(function() { showToast("Email introuvable", "err"); });
+}
 
-// Observer Auth
-onAuthStateChanged(auth, async user => {
-  clearTimeout(window._loaderTimeout);
-  document.getElementById("loader").classList.add("hide");
-
-  const btnLogin = document.getElementById("btn-login");
-  if (btnLogin) { btnLogin.disabled=false; btnLogin.innerHTML='<i class="ti ti-login"></i> Se connecter'; }
-
-  if (user) {
-    CU = user;
-
-    // Retry jusqu'à 5 fois avec 1 seconde entre chaque tentative
-    let snap = null;
-    let attempts = 0;
-    while (attempts < 5) {
-      try {
-        snap = await getDoc(doc(db,"users",user.uid));
-        break; // succès — on sort de la boucle
-      } catch(e) {
-        attempts++;
-        if (attempts >= 5) {
-          showToast("Impossible de charger votre profil. Réessayez.","err");
-          await signOut(auth);
-          goPage("auth-pg");
-          return;
-        }
-        // Attendre 1 seconde avant de réessayer
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-
-    if (!snap || !snap.exists()) {
-      showToast("Profil introuvable. Recréez votre compte.","err");
-      await signOut(auth);
-      goPage("auth-pg");
-      return;
-    }
-
-    UD = snap.data();
-
-    document.getElementById("nav-guest").style.display="none";
-    document.getElementById("nav-user").style.display="flex";
-    document.getElementById("nav-name").textContent = UD.firstName || "";
-    const initials = ((UD.firstName||"?")[0] + (UD.lastName||"?")[0]).toUpperCase();
-    document.getElementById("nav-av").textContent = initials;
-    if (UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
-
-    if (UD.role==="admin") {
-      document.getElementById("nl-admin").style.display="flex";
-      document.getElementById("nl-dash").style.display="none";
-      goPage("admin-pg");
-      loadAdmin();
-    } else {
-      if (UD.status==="disabled") {
-        await signOut(auth);
-        showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err");
-        return goPage("landing");
-      }
-      document.getElementById("nl-dash").style.display="flex";
-      document.getElementById("nl-admin").style.display="none";
-      goPage("dash-pg");
-      loadDash();
-    }
-  } else {
-    CU=null; UD=null;
-    document.getElementById("nav-guest").style.display="flex";
-    document.getElementById("nav-user").style.display="none";
-    document.getElementById("nl-dash").style.display="none";
-    document.getElementById("nl-admin").style.display="none";
-  }
-});
+function doLogout() {
+  auth.signOut().then(function() { goPage("landing"); showToast("Déconnexion réussie"); });
+}
 
 // ══════════════════════════════════════════
 //  DASHBOARD MARCHAND
 // ══════════════════════════════════════════
-async function loadDash() {
-  if (!CU) return;
-  document.getElementById("dash-hi").textContent=`Bonjour, ${UD.firstName} 👋`;
-  document.getElementById("dash-date").textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+function loadDash() {
+  if (!CU || !UD) return;
+  document.getElementById("dash-hi").textContent = "Bonjour, " + UD.firstName + " 👋";
+  document.getElementById("dash-date").textContent = new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
   updateKYCBanner(UD.kycStatus);
-
-  // Withdrawal form
-  const wlocked=document.getElementById("wd-locked"), wform=document.getElementById("wd-form");
-  if (UD.kycStatus==="approved") { wlocked.style.display="none"; wform.style.display="block"; }
+  var wlocked = document.getElementById("wd-locked");
+  var wform   = document.getElementById("wd-form");
+  if (UD.kycStatus === "approved") { wlocked.style.display="none"; wform.style.display="block"; }
   else { wlocked.style.display="block"; wform.style.display="none"; }
 
   // Liens
-  const lq=query(collection(db,"paymentLinks"),where("uid","==",CU.uid),orderBy("createdAt","desc"));
-  const ls=await getDocs(lq); const links=[]; ls.forEach(d=>links.push({id:d.id,...d.data()}));
-  document.getElementById("m-lnk").textContent=links.filter(l=>l.isActive).length;
-  renderLinks(links);
+  db.collection("paymentLinks").where("uid","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(function(ls) {
+      var links = []; ls.forEach(function(d){ links.push({id:d.id,__data:d.data()}); });
+      document.getElementById("m-lnk").textContent = links.filter(function(l){ return l.__data.isActive; }).length;
+      renderLinks(links);
+    }).catch(function(){});
 
   // Transactions
-  const tq=query(collection(db,"transactions"),where("merchantId","==",CU.uid),orderBy("createdAt","desc"));
-  const ts=await getDocs(tq); const txs=[]; ts.forEach(d=>txs.push({id:d.id,...d.data()}));
-  renderTx(txs);
-  const rev=txs.filter(t=>t.status==="success").reduce((s,t)=>s+(t.amount||0),0);
-  document.getElementById("m-rev").textContent=rev.toLocaleString();
-  document.getElementById("m-tx").textContent=txs.length;
+  db.collection("transactions").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(function(ts) {
+      var txs = []; ts.forEach(function(d){ txs.push({id:d.id,__data:d.data()}); });
+      renderTx(txs);
+      var rev = txs.reduce(function(s,t){ return t.__data.status==="success" ? s+(t.__data.amount||0) : s; }, 0);
+      document.getElementById("m-rev").textContent = rev.toLocaleString();
+      document.getElementById("m-tx").textContent = txs.length;
+    }).catch(function(){});
 
   // Balance
-  const fs=await getDoc(doc(db,"users",CU.uid));
-  document.getElementById("m-bal").textContent=(fs.data()?.balance||0).toLocaleString();
+  db.collection("users").doc(CU.uid).get()
+    .then(function(fs){ document.getElementById("m-bal").textContent = (fs.data().balance||0).toLocaleString(); })
+    .catch(function(){});
 
   // Retraits
-  const wq=query(collection(db,"withdrawals"),where("merchantId","==",CU.uid),orderBy("createdAt","desc"));
-  const ws=await getDocs(wq); const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
-  renderWD(wds);
+  db.collection("withdrawals").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(function(ws) {
+      var wds=[]; ws.forEach(function(d){ wds.push({id:d.id,__data:d.data()}); });
+      renderWD(wds);
+    }).catch(function(){});
 
-  renderChart();
   loadAPIKeys();
+  renderChart();
 }
 
 function updateKYCBanner(status) {
-  const b=document.getElementById("kyc-banner");
-  const icons={none:"⚠️",pending:"⏳",approved:"✅",rejected:"❌"};
-  const titles={none:"KYC requis",pending:"KYC en examen",approved:"KYC approuvé",rejected:"KYC rejeté"};
-  const texts={none:"Soumettez vos documents pour activer les retraits.",pending:"Vos documents sont en cours de vérification (24-48h).",approved:"Votre identité est vérifiée. Retraits activés.",rejected:"Documents rejetés. Soumettez-en de nouveaux."};
-  const classes={none:"none",pending:"pending",approved:"approved",rejected:"rejected"};
-  b.className=`kyc-banner ${classes[status]||"none"}`;
-  document.getElementById("kb-icon").textContent=icons[status]||"⚠️";
-  document.getElementById("kb-title").textContent=titles[status]||"KYC requis";
-  document.getElementById("kb-text").textContent=texts[status]||"";
-  const btn=document.getElementById("kb-btn");
-  if (status==="approved") btn.style.display="none";
-  else { btn.style.display=""; btn.textContent=status==="pending"?"Voir mon KYC":"Soumettre"; }
+  var b = document.getElementById("kyc-banner");
+  var icons   = {none:"⚠️",pending:"⏳",approved:"✅",rejected:"❌"};
+  var titles  = {none:"KYC requis",pending:"KYC en examen",approved:"KYC approuvé ✓",rejected:"KYC rejeté"};
+  var texts   = {none:"Soumettez vos documents pour activer les retraits.",pending:"Documents en cours de vérification (24-48h).",approved:"Identité vérifiée. Retraits activés.",rejected:"Documents rejetés. Soumettez-en de nouveaux."};
+  b.className = "kyc-banner " + (status||"none");
+  document.getElementById("kb-ico").textContent   = icons[status]||"⚠️";
+  document.getElementById("kb-title").textContent = titles[status]||"KYC requis";
+  document.getElementById("kb-text").textContent  = texts[status]||"";
+  var btn = document.getElementById("kb-btn");
+  if (status === "approved") btn.style.display = "none";
+  else { btn.style.display=""; btn.textContent = status==="pending" ? "Voir mon KYC" : "Soumettre"; }
 }
 
 function renderLinks(links) {
-  const tb=document.getElementById("tb-links");
-  if (!links.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr>`; return; }
-  tb.innerHTML=links.map(l=>`<tr>
-    <td><strong style="font-size:12px">${l.name}</strong></td>
-    <td><strong style="color:var(--gd)">${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}</strong></td>
-    <td><span class="badge ${l.isActive?'b-ok':'b-grey'}">${l.isActive?'Actif':'Inactif'}</span></td>
-    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn-xs bx-g" onclick="prevLink('${l.id}')">👁</button>
-      <button class="btn-xs bx-grey" onclick="copyLink('${l.slug}')">📋</button>
-      <button class="btn-xs bx-r" onclick="togLink('${l.id}',${l.isActive})">${l.isActive?'Off':'On'}</button>
-    </div></td>
-  </tr>`).join("");
+  var tb = document.getElementById("tb-links");
+  if (!links.length) { tb.innerHTML='<tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr>'; return; }
+  tb.innerHTML = links.map(function(l){
+    var d = l.__data;
+    return '<tr><td><strong style="font-size:12px">'+d.name+'</strong></td><td><strong style="color:var(--gd)">'+(d.amount||0).toLocaleString()+' '+(d.currency||'XOF')+'</strong></td><td><span class="badge '+(d.isActive?'b-ok':'b-grey')+'">'+(d.isActive?'Actif':'Inactif')+'</span></td><td><div style="display:flex;gap:4px"><button class="btn-xs bx-g" onclick="prevLink(\''+l.id+'\')">👁</button><button class="btn-xs bx-grey" onclick="copyLink(\''+d.slug+'\')">📋</button><button class="btn-xs bx-r" onclick="togLink(\''+l.id+'\','+d.isActive+')">'+(d.isActive?'Off':'On')+'</button></div></td></tr>';
+  }).join("");
 }
 
 function renderTx(txs) {
-  const tb=document.getElementById("tb-tx");
-  if (!txs.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr>`; return; }
-  tb.innerHTML=txs.map(t=>`<tr>
-    <td>${t.customerName||'—'}</td>
-    <td><strong>${(t.amount||0).toLocaleString()} ${t.currency||'XOF'}</strong></td>
-    <td>${t.method||'—'}</td>
-    <td>${t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><span class="badge ${t.status==='success'?'b-ok':t.status==='pending'?'b-wait':'b-ko'}">${t.status==='success'?'✓ Réussi':t.status==='pending'?'⏳':'✗'}</span></td>
-  </tr>`).join("");
+  var tb = document.getElementById("tb-tx");
+  if (!txs.length) { tb.innerHTML='<tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr>'; return; }
+  tb.innerHTML = txs.map(function(t){
+    var d = t.__data;
+    var date = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString("fr-FR") : "—";
+    var cls = d.status==="success"?"b-ok":d.status==="pending"?"b-wait":"b-ko";
+    var lbl = d.status==="success"?"✓ OK":d.status==="pending"?"⏳":"✗";
+    return '<tr><td>'+(d.customerName||'—')+'</td><td><strong>'+(d.amount||0).toLocaleString()+' '+(d.currency||'XOF')+'</strong></td><td>'+(d.method||'—')+'</td><td>'+date+'</td><td><span class="badge '+cls+'">'+lbl+'</span></td></tr>';
+  }).join("");
 }
 
 function renderWD(wds) {
-  const tb=document.getElementById("tb-wd");
-  if (!wds.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr>`; return; }
-  tb.innerHTML=wds.map(w=>`<tr>
-    <td>${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><strong>${(w.amount||0).toLocaleString()} XOF</strong></td>
-    <td style="font-size:11px">${w.method||'—'}</td>
-    <td><span class="badge ${w.status==='approved'?'b-ok':w.status==='pending'?'b-wait':'b-ko'}">${w.status==='approved'?'✓ Approuvé':w.status==='pending'?'⏳ Attente':'✗ Rejeté'}</span></td>
-  </tr>`).join("");
+  var tb = document.getElementById("tb-wd");
+  if (!wds.length) { tb.innerHTML='<tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr>'; return; }
+  tb.innerHTML = wds.map(function(w){
+    var d = w.__data;
+    var date = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString("fr-FR") : "—";
+    var cls = d.status==="approved"?"b-ok":d.status==="pending"?"b-wait":"b-ko";
+    var lbl = d.status==="approved"?"✓ Approuvé":d.status==="pending"?"⏳ Attente":"✗ Rejeté";
+    return '<tr><td>'+date+'</td><td><strong>'+(d.amount||0).toLocaleString()+' XOF</strong></td><td style="font-size:11px">'+(d.method||'—')+'</td><td><span class="badge '+cls+'">'+lbl+'</span></td></tr>';
+  }).join("");
 }
 
 function renderChart() {
-  const days=["L","M","M","J","V","S","D"],vals=[42,68,38,82,57,95,74],mx=Math.max(...vals);
-  const ch=document.getElementById("chart");
-  if(ch) ch.innerHTML=days.map((d,i)=>`<div class="bg2"><div class="bb${i===5?" hi":""}" style="height:${Math.round((vals[i]/mx)*64)}px"></div><div class="bbl">${d}</div></div>`).join("");
+  var days=["L","M","M","J","V","S","D"],vals=[42,68,38,82,57,95,74],mx=Math.max.apply(null,vals);
+  var ch = document.getElementById("chart");
+  if(ch) ch.innerHTML=days.map(function(d,i){ return '<div class="bg2"><div class="bb'+(i===5?" hi":"")+'" style="height:'+Math.round((vals[i]/mx)*64)+'px"></div><div class="bbl">'+d+'</div></div>'; }).join("");
 }
 
-// Actions marchands
-window.prevLink = async id => {
-  const s=await getDoc(doc(db,"paymentLinks",id)); if(!s.exists()) return;
-  const l=s.data(); linkPreview={id,...l};
-  document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
-  document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
-  document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
-  document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
-  document.getElementById("co-desc").textContent=l.description||l.name;
-  document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
-  goPage("checkout-pg");
-};
-window.copyLink = slug => { navigator.clipboard.writeText(`${location.origin}?pay=${slug}`).catch(()=>{}); showToast("Lien copié !"); };
-window.togLink = async (id,active) => { await updateDoc(doc(db,"paymentLinks",id),{isActive:!active}); showToast(!active?"Activé":"Désactivé"); loadDash(); };
+// ══ ACTIONS LIENS ══
+function prevLink(id) {
+  db.collection("paymentLinks").doc(id).get().then(function(s){
+    if (!s.exists) return;
+    var l = s.data(); LP = {id:id,uid:l.uid,amount:l.amount,currency:l.currency,name:l.name,description:l.description,merchantName:l.merchantName};
+    document.getElementById("co-mname").textContent = l.merchantName||"Vendeur";
+    document.getElementById("co-logo").textContent  = (l.merchantName||"F2K").slice(0,2).toUpperCase();
+    document.getElementById("co-cur").textContent   = (l.currency||"XOF")+" ";
+    document.getElementById("co-amt").textContent   = (l.amount||0).toLocaleString();
+    document.getElementById("co-desc").textContent  = l.description||l.name;
+    document.getElementById("co-pay-amt").textContent = (l.amount||0).toLocaleString()+" "+(l.currency||"XOF");
+    goPage("checkout-pg");
+  });
+}
 
-window.createLink = async () => {
-  if (!CU) return showToast("Vous devez être connecté","err");
-  if (!UD) return showToast("Rechargez la page et reconnectez-vous","err");
-  const name=document.getElementById("cl-name").value.trim();
-  const amt=document.getElementById("cl-amt").value;
-  const cur=document.getElementById("cl-cur").value;
-  const desc=document.getElementById("cl-desc").value.trim();
-  const redir=document.getElementById("cl-redir").value.trim();
-  if (!name||!amt) return showToast("Nom et montant requis","err");
-  if (Number(amt) < 100) return showToast("Montant minimum : 100 FCFA","err");
-  const btn=document.getElementById("btn-cl");
-  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Création...';
-  try {
-    const slug=name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
-    await addDoc(collection(db,"paymentLinks"),{
-      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`,
-      name, amount:Number(amt), currency:cur, description:desc, redirectUrl:redir,
-      slug, isActive:true, paymentCount:0,
-      paymentUrl:`${location.origin}?pay=${slug}`,
-      createdAt:serverTimestamp(),
-    });
+function copyLink(slug) {
+  var url = location.origin + location.pathname + "?pay=" + slug;
+  navigator.clipboard.writeText(url).catch(function(){});
+  showToast("Lien copié !");
+}
+
+function togLink(id, active) {
+  db.collection("paymentLinks").doc(id).update({isActive:!active})
+    .then(function(){ showToast(!active?"Activé":"Désactivé"); loadDash(); })
+    .catch(function(e){ showToast("Erreur : "+e.message,"err"); });
+}
+
+function createLink() {
+  if (!CU || !UD) return showToast("Reconnectez-vous","err");
+  var name  = document.getElementById("cl-name").value.trim();
+  var amt   = document.getElementById("cl-amt").value;
+  var cur   = document.getElementById("cl-cur").value;
+  var desc  = document.getElementById("cl-desc").value.trim();
+  var redir = document.getElementById("cl-redir").value.trim();
+  if (!name || !amt) return showToast("Nom et montant requis","err");
+  if (Number(amt) < 100) return showToast("Montant minimum : 100","err");
+  setBtnLoad("btn-cl", true);
+  var slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
+  db.collection("paymentLinks").add({
+    uid:CU.uid, merchantName:UD.firstName+" "+UD.lastName,
+    name:name, amount:Number(amt), currency:cur, description:desc, redirectUrl:redir,
+    slug:slug, isActive:true, paymentCount:0,
+    paymentUrl:location.origin+location.pathname+"?pay="+slug,
+    createdAt:FS.serverTimestamp()
+  })
+  .then(function(){
     closeModal("m-link");
     showToast("Lien créé avec succès !");
-    ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(id=>document.getElementById(id).value="");
+    ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(function(id){ document.getElementById(id).value=""; });
     loadDash();
-  } catch(e) {
-    console.error("Erreur createLink:",e);
-    if (e.code==="permission-denied") showToast("Permission refusée — vérifiez les règles Firestore","err");
-    else showToast("Erreur : "+e.message,"err");
-  }
-  btn.disabled=false; btn.innerHTML='<i class="ti ti-link"></i> Créer le lien';
-};
+  })
+  .catch(function(e){ showToast("Erreur : "+e.message,"err"); })
+  .finally(function(){ setBtnLoad("btn-cl",false,'<i class="ti ti-link"></i> Créer le lien'); });
+}
 
-window.submitWithdrawal = async () => {
-  if (!CU||UD?.kycStatus!=="approved") return showToast("KYC requis pour retirer","err");
-  const amt=Number(document.getElementById("wd-amt").value);
-  const meth=document.getElementById("wd-meth").value;
-  const phone=document.getElementById("wd-phone").value.trim();
-  if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
+function doWithdrawal() {
+  if (!CU || UD.kycStatus !== "approved") return showToast("KYC requis pour retirer","err");
+  var amt   = Number(document.getElementById("wd-amt").value);
+  var meth  = document.getElementById("wd-meth").value;
+  var phone = document.getElementById("wd-phone").value.trim();
+  if (!amt || amt < 1000) return showToast("Minimum 1 000 FCFA","err");
   if (!phone) return showToast("Entrez un numéro de réception","err");
-  const btn=document.querySelector("#t-wd .btn-g");
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Envoi...';}
-  try {
-    const fs=await getDoc(doc(db,"users",CU.uid));
-    const bal=fs.data()?.balance||0;
-    if (amt>bal) {
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-cash"></i> Soumettre la demande';}
-      return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`, "err");
-    }
-    await addDoc(collection(db,"withdrawals"),{
-      merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
-      amount:amt, method:meth, phone, status:"pending", type:"merchant", createdAt:serverTimestamp(),
-    });
-    showToast("Demande soumise — l'admin validera sous 24h.");
-    document.getElementById("wd-amt").value="";
-    document.getElementById("wd-phone").value="";
-    loadDash();
-  } catch(e) {
-    console.error("Erreur withdrawal:",e);
-    if (e.code==="permission-denied") showToast("Permission refusée — contactez le support","err");
-    else showToast("Erreur : "+e.message,"err");
-  }
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-cash"></i> Soumettre la demande';}
-};
+  setBtnLoad("btn-wd", true);
+  db.collection("users").doc(CU.uid).get()
+    .then(function(fs){
+      var bal = fs.data().balance || 0;
+      if (amt > bal) { showToast("Solde insuffisant ("+bal.toLocaleString()+" FCFA)","err"); throw new Error("solde"); }
+      return db.collection("withdrawals").add({
+        merchantId:CU.uid, merchantName:UD.firstName+" "+UD.lastName, merchantEmail:UD.email,
+        amount:amt, method:meth, phone:phone, status:"pending", type:"merchant",
+        createdAt:FS.serverTimestamp()
+      });
+    })
+    .then(function(){
+      showToast("Demande soumise — l'admin validera sous 24h.");
+      document.getElementById("wd-amt").value = "";
+      document.getElementById("wd-phone").value = "";
+      loadDash();
+    })
+    .catch(function(e){ if(e.message!=="solde") showToast("Erreur : "+e.message,"err"); })
+    .finally(function(){ setBtnLoad("btn-wd",false,'<i class="ti ti-cash"></i> Soumettre la demande'); });
+}
 
 // ══════════════════════════════════════════
-//  KYC UPLOAD (Cloudinary)
+//  KYC
 // ══════════════════════════════════════════
-window.prevFile = (input, prevId) => {
-  const p=document.getElementById(prevId); p.innerHTML="";
-  if (input.files?.[0]) { const img=document.createElement("img"); img.className="up-thumb"; img.src=URL.createObjectURL(input.files[0]); p.appendChild(img); }
-};
-
-window.openModal = id => {
-  if (id==="m-kyc") setupKYCModal();
-  document.getElementById(id).classList.add("show");
-};
-
-async function setupKYCModal() {
+function loadKYCModal() {
   if (!CU) return;
-  const snap=await getDoc(doc(db,"kyc",CU.uid));
-  const kyc=snap.exists()?snap.data():null;
-  const sb=document.getElementById("kyc-status-box"), kf=document.getElementById("kyc-form");
-  if (kyc && kyc.status!=="rejected") {
-    sb.style.display="block";
-    sb.className=`info-box ${kyc.status==="approved"?"success":"warn"}`;
-    sb.innerHTML=`<i class="ti ti-${kyc.status==="approved"?'check':"clock"}" style="vertical-align:-2px;margin-right:5px"></i>${kyc.status==="approved"?"✅ KYC approuvé par l'administrateur.":"⏳ Documents en cours de vérification (24-48h)."}`;
-    kf.style.display=kyc.status==="approved"?"none":"block";
-  } else { sb.style.display="none"; kf.style.display="block"; }
+  db.collection("kyc").doc(CU.uid).get().then(function(snap){
+    var sb = document.getElementById("kyc-status-box");
+    var kf = document.getElementById("kyc-form");
+    if (snap.exists && snap.data().status !== "rejected") {
+      var st = snap.data().status;
+      sb.style.display = "block";
+      sb.className = "info-box " + (st==="approved"?"ib-ok":"ib-warn");
+      sb.innerHTML = '<i class="ti ti-'+(st==="approved"?"check":"clock")+'" style="vertical-align:-2px;margin-right:5px"></i>' + (st==="approved"?"✅ KYC approuvé par l'administrateur.":"⏳ Documents en cours de vérification (24-48h).");
+      kf.style.display = st==="approved" ? "none" : "block";
+    } else { sb.style.display="none"; kf.style.display="block"; }
+  }).catch(function(){ document.getElementById("kyc-status-box").style.display="none"; document.getElementById("kyc-form").style.display="block"; });
 }
 
-async function uploadCDN(file) {
-  const fd=new FormData();
-  fd.append("file",file); fd.append("upload_preset",CDN.preset); fd.append("folder","f2kpay-kyc");
-  const res=await fetch(`https://api.cloudinary.com/v1_1/${CDN.cloud}/image/upload`,{method:"POST",body:fd});
-  const d=await res.json();
-  if (d.error) throw new Error(d.error.message);
-  return d.secure_url;
+function prevFile(input, prevId) {
+  var p = document.getElementById(prevId); p.innerHTML = "";
+  if (input.files && input.files[0]) {
+    var img = document.createElement("img"); img.className="up-thumb";
+    img.src = URL.createObjectURL(input.files[0]); p.appendChild(img);
+  }
 }
 
-window.submitKYC = async () => {
-  const f=document.getElementById("kyc-f").files[0], b=document.getElementById("kyc-b").files[0], s=document.getElementById("kyc-s").files[0];
-  const type=document.getElementById("kyc-type").value;
+function uploadCDN(file) {
+  var fd = new FormData();
+  fd.append("file", file); fd.append("upload_preset", CDN_PRESET); fd.append("folder","f2kpay-kyc");
+  return fetch("https://api.cloudinary.com/v1_1/"+CDN_CLOUD+"/image/upload",{method:"POST",body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d.error) throw new Error(d.error.message); return d.secure_url; });
+}
+
+function submitKYC() {
+  var f = document.getElementById("kyc-f").files[0];
+  var b = document.getElementById("kyc-b").files[0];
+  var s = document.getElementById("kyc-s").files[0];
+  var type = document.getElementById("kyc-type").value;
   if (!f||!b||!s) return showToast("Uploadez les 3 documents requis","err");
-  const btn=document.getElementById("btn-kyc"); btn.disabled=true; btn.textContent="Upload en cours...";
-  try {
-    const [fu,bu,su]=await Promise.all([uploadCDN(f),uploadCDN(b),uploadCDN(s)]);
-    await setDoc(doc(db,"kyc",CU.uid),{
-      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
-      docType:type, frontUrl:fu, backUrl:bu, selfieUrl:su,
-      status:"pending", submittedAt:serverTimestamp(),
-    });
-    await updateDoc(doc(db,"users",CU.uid),{kycStatus:"pending"});
-    UD.kycStatus="pending";
-    updateKYCBanner("pending");
-    document.getElementById("av-dot").style.display="block";
-    closeModal("m-kyc");
-    showToast("Documents soumis ! Réponse sous 48h.");
-  } catch(e) { showToast("Erreur upload : "+e.message,"err"); }
-  btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Soumettre mes documents';
-};
+  setBtnLoad("btn-kyc",true);
+  Promise.all([uploadCDN(f),uploadCDN(b),uploadCDN(s)])
+    .then(function(urls){
+      return db.collection("kyc").doc(CU.uid).set({
+        uid:CU.uid, merchantName:UD.firstName+" "+UD.lastName, merchantEmail:UD.email,
+        docType:type, frontUrl:urls[0], backUrl:urls[1], selfieUrl:urls[2],
+        status:"pending", submittedAt:FS.serverTimestamp()
+      });
+    })
+    .then(function(){ return db.collection("users").doc(CU.uid).update({kycStatus:"pending"}); })
+    .then(function(){
+      UD.kycStatus = "pending"; updateKYCBanner("pending");
+      document.getElementById("av-dot").style.display = "block";
+      closeModal("m-kyc"); showToast("Documents soumis ! Réponse sous 48h.");
+    })
+    .catch(function(e){ showToast("Erreur upload : "+e.message,"err"); })
+    .finally(function(){ setBtnLoad("btn-kyc",false,'<i class="ti ti-send"></i> Soumettre mes documents'); });
+}
 
 // ══════════════════════════════════════════
 //  ADMIN
 // ══════════════════════════════════════════
-async function loadAdmin() {
-  // Commissions wallet admin
-  const adminSnap = await getDocs(query(collection(db,"users"),where("email","==",ADMIN_EMAIL)));
-  if (!adminSnap.empty) {
-    const adminData = adminSnap.docs[0].data();
-    document.getElementById("a-commission").textContent = (adminData.commissionWallet||0).toLocaleString();
-  }
-  const mq=query(collection(db,"users"),where("role","==","merchant"));
-  const ms=await getDocs(mq); const merch=[]; ms.forEach(d=>merch.push({id:d.id,...d.data()}));
-  document.getElementById("a-merch").textContent=merch.filter(m=>m.status==="active").length;
-  renderAdminMerch(merch);
-
-  const kq=query(collection(db,"kyc"),where("status","==","pending"));
-  const ks=await getDocs(kq); const kycs=[]; ks.forEach(d=>kycs.push({id:d.id,...d.data()}));
-  document.getElementById("a-kyc").textContent=kycs.length;
-  renderAdminKYC(kycs);
-
-  const wq=query(collection(db,"withdrawals"),where("status","==","pending"),where("type","==","merchant"));
-  const ws=await getDocs(wq); const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
-  document.getElementById("a-wd").textContent=wds.length;
-  renderAdminWD(wds);
+function loadAdmin() {
+  // Commissions
+  db.collection("users").where("email","==",ADMIN_EMAIL).get()
+    .then(function(as){ if(!as.empty) document.getElementById("a-comm").textContent=(as.docs[0].data().commissionWallet||0).toLocaleString(); });
+  // Marchands
+  db.collection("users").where("role","==","merchant").get()
+    .then(function(ms){
+      var list=[]; ms.forEach(function(d){ list.push({id:d.id,d:d.data()}); });
+      document.getElementById("a-merch").textContent = list.filter(function(m){ return m.d.status==="active"; }).length;
+      renderAdmMerch(list);
+    });
+  // KYC
+  db.collection("kyc").where("status","==","pending").get()
+    .then(function(ks){
+      var list=[]; ks.forEach(function(d){ list.push({id:d.id,d:d.data()}); });
+      document.getElementById("a-kyc").textContent = list.length;
+      renderAdmKYC(list);
+    });
+  // Retraits
+  db.collection("withdrawals").where("status","==","pending").where("type","==","merchant").get()
+    .then(function(ws){
+      var list=[]; ws.forEach(function(d){ list.push({id:d.id,d:d.data()}); });
+      document.getElementById("a-wd").textContent = list.length;
+      renderAdmWD(list);
+    });
 }
 
-function renderAdminMerch(list) {
-  const tb=document.getElementById("atb-merch");
-  if (!list.length) { tb.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr>`; return; }
-  tb.innerHTML=list.map(m=>`<tr>
-    <td><div class="td-user"><div class="u-av">${(m.firstName||'?')[0]}${(m.lastName||'?')[0]}</div><div><div style="font-weight:500;font-size:12px">${m.firstName} ${m.lastName}</div><div style="font-size:10px;color:var(--hi)">${m.phone||''}</div></div></div></td>
-    <td style="font-size:11px"><a href="mailto:${m.email}" style="color:var(--g)">${m.email}</a></td>
-    <td><span class="badge ${m.kycStatus==='approved'?'b-ok':m.kycStatus==='pending'?'b-wait':m.kycStatus==='rejected'?'b-ko':'b-grey'}">${m.kycStatus==='approved'?'✓ OK':m.kycStatus==='pending'?'⏳':m.kycStatus==='rejected'?'✗ Rejeté':'—'}</span></td>
-    <td><span class="badge ${m.status==='active'?'b-ok':'b-ko'}">${m.status==='active'?'Actif':'Désactivé'}</span></td>
-    <td style="font-size:11px;font-weight:600">${(m.balance||0).toLocaleString()} XOF</td>
-    <td><div class="td-actions">
-      <button class="btn-xs ${m.status==='active'?'bx-r':'bx-g'}" onclick="togMerch('${m.id}','${m.status}')">${m.status==='active'?'Désact.':'Activer'}</button>
-      <button class="btn-xs bx-r" onclick="delMerch('${m.id}','${m.firstName}')">Suppr.</button>
-    </div></td>
-  </tr>`).join("");
+function renderAdmMerch(list) {
+  var tb = document.getElementById("atb-merch");
+  if (!list.length) { tb.innerHTML='<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr>'; return; }
+  tb.innerHTML = list.map(function(m){
+    var d=m.d;
+    var kycCls=d.kycStatus==="approved"?"b-ok":d.kycStatus==="pending"?"b-wait":d.kycStatus==="rejected"?"b-ko":"b-grey";
+    var kycLbl=d.kycStatus==="approved"?"✓ OK":d.kycStatus==="pending"?"⏳":d.kycStatus==="rejected"?"✗":"—";
+    var stCls=d.status==="active"?"b-ok":"b-ko";
+    var stLbl=d.status==="active"?"Actif":"Désactivé";
+    return '<tr><td><div class="td-user"><div class="u-av">'+((d.firstName||"?")[0]+(d.lastName||"?")[0])+'</div><div><div style="font-weight:500;font-size:12px">'+d.firstName+' '+d.lastName+'</div><div style="font-size:10px;color:var(--hi)">'+(d.phone||'')+'</div></div></div></td><td style="font-size:11px"><a href="mailto:'+d.email+'" style="color:var(--g)">'+d.email+'</a></td><td><span class="badge '+kycCls+'">'+kycLbl+'</span></td><td><span class="badge '+stCls+'">'+stLbl+'</span></td><td style="font-size:11px;font-weight:600">'+(d.balance||0).toLocaleString()+' XOF</td><td><div class="td-actions"><button class="btn-xs '+(d.status==="active"?"bx-r":"bx-g")+'" onclick="togMerch(\''+m.id+'\',\''+d.status+'\')">'+(d.status==="active"?"Désact.":"Activer")+'</button><button class="btn-xs bx-r" onclick="delMerch(\''+m.id+'\',\''+d.firstName+'\')">Suppr.</button></div></td></tr>';
+  }).join("");
 }
 
-function renderAdminKYC(kycs) {
-  const tb=document.getElementById("atb-kyc");
-  if (!kycs.length) { tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr>`; return; }
-  tb.innerHTML=kycs.map(k=>`<tr>
-    <td><div style="font-size:12px;font-weight:500">${k.merchantName}</div><div style="font-size:10px;color:var(--hi)">${k.merchantEmail}</div></td>
-    <td><div style="display:flex;gap:5px">
-      <img src="${k.frontUrl}" class="kyc-thumb" alt="Recto" onclick="viewDoc('${k.frontUrl}','Recto · ${k.merchantName}','Pièce : ${k.docType}')">
-      <img src="${k.backUrl}" class="kyc-thumb" alt="Verso" onclick="viewDoc('${k.backUrl}','Verso · ${k.merchantName}','Pièce : ${k.docType}')">
-      <img src="${k.selfieUrl}" class="kyc-thumb" alt="Selfie" onclick="viewDoc('${k.selfieUrl}','Selfie · ${k.merchantName}','Selfie avec document')">
-    </div></td>
-    <td style="font-size:11px">${k.submittedAt?.toDate?k.submittedAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><div class="td-actions">
-      <button class="btn-xs bx-g" onclick="apprKYC('${k.uid}')">✅ Approuver</button>
-      <button class="btn-xs bx-r" onclick="rejKYC('${k.uid}')">❌ Rejeter</button>
-    </div></td>
-  </tr>`).join("");
+function renderAdmKYC(list) {
+  var tb = document.getElementById("atb-kyc");
+  if (!list.length) { tb.innerHTML='<tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr>'; return; }
+  tb.innerHTML = list.map(function(k){
+    var d=k.d;
+    var date = d.submittedAt&&d.submittedAt.toDate ? d.submittedAt.toDate().toLocaleDateString("fr-FR") : "—";
+    return '<tr><td><div style="font-size:12px;font-weight:500">'+d.merchantName+'</div><div style="font-size:10px;color:var(--hi)">'+d.merchantEmail+'</div></td><td><div style="display:flex;gap:5px"><img src="'+d.frontUrl+'" class="kyc-thumb" onclick="viewDoc(\''+d.frontUrl+'\',\'Recto\',\''+d.merchantName+'\')"><img src="'+d.backUrl+'" class="kyc-thumb" onclick="viewDoc(\''+d.backUrl+'\',\'Verso\',\''+d.merchantName+'\')"><img src="'+d.selfieUrl+'" class="kyc-thumb" onclick="viewDoc(\''+d.selfieUrl+'\',\'Selfie\',\''+d.merchantName+'\')"></div></td><td style="font-size:11px">'+date+'</td><td><div class="td-actions"><button class="btn-xs bx-g" onclick="apprKYC(\''+d.uid+'\')">✅ Approuver</button><button class="btn-xs bx-r" onclick="rejKYC(\''+d.uid+'\')">❌ Rejeter</button></div></td></tr>';
+  }).join("");
 }
 
-function renderAdminWD(wds) {
-  const tb=document.getElementById("atb-wd");
-  if (!wds.length) { tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr>`; return; }
-  tb.innerHTML=wds.map(w=>`<tr>
-    <td><div style="font-size:12px;font-weight:500">${w.merchantName}</div><div style="font-size:10px;color:var(--hi)">${w.merchantEmail}</div></td>
-    <td><strong style="color:var(--gd)">${(w.amount||0).toLocaleString()} XOF</strong></td>
-    <td style="font-size:11px"><code>${w.phone||'—'}</code></td>
-    <td style="font-size:11px">${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
-    <td><div class="td-actions">
-      <button class="btn-xs bx-g" onclick="apprWD('${w.id}','${w.merchantId}',${w.amount})">✅ Approuver</button>
-      <button class="btn-xs bx-r" onclick="rejWD('${w.id}')">❌ Rejeter</button>
-    </div></td>
-  </tr>`).join("");
+function renderAdmWD(list) {
+  var tb = document.getElementById("atb-wd");
+  if (!list.length) { tb.innerHTML='<tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr>'; return; }
+  tb.innerHTML = list.map(function(w){
+    var d=w.d;
+    var date = d.createdAt&&d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString("fr-FR") : "—";
+    return '<tr><td><div style="font-size:12px;font-weight:500">'+d.merchantName+'</div><div style="font-size:10px;color:var(--hi)">'+d.merchantEmail+'</div></td><td><strong style="color:var(--gd)">'+(d.amount||0).toLocaleString()+' XOF</strong></td><td style="font-size:11px"><code>'+(d.phone||'—')+'</code></td><td style="font-size:11px">'+date+'</td><td><div class="td-actions"><button class="btn-xs bx-g" onclick="apprWD(\''+w.id+'\',\''+d.merchantId+'\','+d.amount+')">✅ Approuver</button><button class="btn-xs bx-r" onclick="rejWD(\''+w.id+'\')">❌ Rejeter</button></div></td></tr>';
+  }).join("");
 }
 
-window.togMerch = async (uid,status) => { await updateDoc(doc(db,"users",uid),{status:status==="active"?"disabled":"active"}); showToast(status==="active"?"Compte désactivé":"Compte activé"); loadAdmin(); };
-window.delMerch = async (uid,name) => { if(!confirm(`Supprimer le compte de ${name} ?`)) return; await updateDoc(doc(db,"users",uid),{status:"deleted",deletedAt:serverTimestamp()}); showToast(`${name} supprimé`); loadAdmin(); };
-window.viewDoc = (url,title,sub) => { document.getElementById("doc-img").src=url; document.getElementById("doc-title").textContent=title; document.getElementById("doc-sub").textContent=sub; document.getElementById("m-doc").classList.add("show"); };
-window.apprKYC = async uid => { await updateDoc(doc(db,"kyc",uid),{status:"approved",reviewedAt:serverTimestamp()}); await updateDoc(doc(db,"users",uid),{kycStatus:"approved"}); showToast("KYC approuvé ✅"); loadAdmin(); };
-window.rejKYC = async uid => { const r=prompt("Raison du rejet :"); if(r===null) return; await updateDoc(doc(db,"kyc",uid),{status:"rejected",rejectionReason:r,reviewedAt:serverTimestamp()}); await updateDoc(doc(db,"users",uid),{kycStatus:"rejected"}); showToast("KYC rejeté"); loadAdmin(); };
-window.apprWD = async (wid,mid,amt) => {
-  if (!confirm(`Approuver ${amt.toLocaleString()} XOF ? Moneroo enverra les fonds.`)) return;
-  // await fetch(`${BACKEND}/api/payout`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({withdrawalId:wid,merchantId:mid,amount:amt})});
-  await updateDoc(doc(db,"withdrawals",wid),{status:"approved",approvedAt:serverTimestamp()});
-  const fs=await getDoc(doc(db,"users",mid)); const bal=fs.data()?.balance||0;
-  await updateDoc(doc(db,"users",mid),{balance:Math.max(0,bal-amt)});
-  showToast("Retrait approuvé ✅ Moneroo va envoyer les fonds."); loadAdmin();
-};
-window.rejWD = async wid => { const r=prompt("Raison du rejet :"); if(r===null) return; await updateDoc(doc(db,"withdrawals",wid),{status:"rejected",rejectionReason:r,rejectedAt:serverTimestamp()}); showToast("Rejeté"); loadAdmin(); };
-
-window.adminWithdrawal = async () => {
-  const amt=Number(document.getElementById("adm-amt").value), meth=document.getElementById("adm-meth").value;
-  const phone=document.getElementById("adm-phone").value.trim(), note=document.getElementById("adm-note").value.trim();
+function togMerch(uid, status) {
+  db.collection("users").doc(uid).update({status:status==="active"?"disabled":"active"})
+    .then(function(){ showToast(status==="active"?"Compte désactivé":"Compte activé"); loadAdmin(); });
+}
+function delMerch(uid, name) {
+  if (!confirm("Supprimer le compte de "+name+" ?")) return;
+  db.collection("users").doc(uid).update({status:"deleted",deletedAt:FS.serverTimestamp()})
+    .then(function(){ showToast(name+" supprimé"); loadAdmin(); });
+}
+function viewDoc(url, label, name) {
+  document.getElementById("doc-img").src = url;
+  document.getElementById("doc-title").textContent = label+" · "+name;
+  document.getElementById("doc-sub").textContent = "Document KYC";
+  document.getElementById("m-doc").classList.add("show");
+}
+function apprKYC(uid) {
+  db.collection("kyc").doc(uid).update({status:"approved",reviewedAt:FS.serverTimestamp()})
+    .then(function(){ return db.collection("users").doc(uid).update({kycStatus:"approved"}); })
+    .then(function(){ showToast("KYC approuvé ✅"); loadAdmin(); });
+}
+function rejKYC(uid) {
+  var r = prompt("Raison du rejet :"); if (r===null) return;
+  db.collection("kyc").doc(uid).update({status:"rejected",rejectionReason:r,reviewedAt:FS.serverTimestamp()})
+    .then(function(){ return db.collection("users").doc(uid).update({kycStatus:"rejected"}); })
+    .then(function(){ showToast("KYC rejeté"); loadAdmin(); });
+}
+function apprWD(wid, mid, amt) {
+  if (!confirm("Approuver "+Number(amt).toLocaleString()+" XOF ?")) return;
+  db.collection("withdrawals").doc(wid).update({status:"approved",approvedAt:FS.serverTimestamp()})
+    .then(function(){ return db.collection("users").doc(mid).get(); })
+    .then(function(fs){ return db.collection("users").doc(mid).update({balance:Math.max(0,(fs.data().balance||0)-amt)}); })
+    .then(function(){ showToast("Retrait approuvé ✅"); loadAdmin(); });
+}
+function rejWD(wid) {
+  var r = prompt("Raison du rejet :"); if (r===null) return;
+  db.collection("withdrawals").doc(wid).update({status:"rejected",rejectionReason:r,rejectedAt:FS.serverTimestamp()})
+    .then(function(){ showToast("Rejeté"); loadAdmin(); });
+}
+function adminWithdrawal() {
+  var amt   = Number(document.getElementById("adm-amt").value);
+  var meth  = document.getElementById("adm-meth").value;
+  var phone = document.getElementById("adm-phone").value.trim();
+  var note  = document.getElementById("adm-note").value.trim();
   if (!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
   if (!phone) return showToast("Entrez un numéro","err");
-  // await fetch(`${BACKEND}/api/admin-payout`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({amount:amt,method:meth,phone,note})});
-  await addDoc(collection(db,"withdrawals"),{merchantId:CU.uid,merchantName:"ADMIN F2KPay",merchantEmail:"f2kmultiservice@gmail.com",amount:amt,method:meth,phone,note,status:"approved",type:"admin",createdAt:serverTimestamp()});
-  showToast("Demande de retrait admin envoyée à Moneroo ✅");
-  document.getElementById("adm-amt").value=""; document.getElementById("adm-phone").value="";
-};
+  db.collection("withdrawals").add({
+    merchantId:CU.uid, merchantName:"ADMIN F2KPay", merchantEmail:ADMIN_EMAIL,
+    amount:amt, method:meth, phone:phone, note:note,
+    status:"approved", type:"admin", createdAt:FS.serverTimestamp()
+  }).then(function(){
+    showToast("Demande envoyée à Moneroo ✅");
+    document.getElementById("adm-amt").value="";
+    document.getElementById("adm-phone").value="";
+  });
+}
 
 // ══════════════════════════════════════════
 //  CHECKOUT
 // ══════════════════════════════════════════
-window.swCo = (btn,tab) => { document.querySelectorAll(".ct").forEach(t=>t.classList.remove("on")); btn.classList.add("on"); document.getElementById("co-mob").style.display=tab==="co-mob"?"block":"none"; document.getElementById("co-card").style.display=tab==="co-card"?"block":"none"; };
-window.selPM = el => { document.querySelectorAll(".pm").forEach(m=>m.classList.remove("sel")); el.classList.add("sel"); };
-window.doPay = async () => {
-  const name=document.getElementById("co-name").value.trim(), email=document.getElementById("co-email").value.trim();
+function swCoTab(btn, tab) {
+  document.querySelectorAll(".ctab").forEach(function(t){ t.classList.remove("on"); }); btn.classList.add("on");
+  document.getElementById("co-mob").style.display  = tab==="co-mob"  ? "block" : "none";
+  document.getElementById("co-card").style.display = tab==="co-card" ? "block" : "none";
+}
+function selPM(el) { document.querySelectorAll(".pm").forEach(function(m){ m.classList.remove("sel"); }); el.classList.add("sel"); }
+function doPay() {
+  var name  = document.getElementById("co-name").value.trim();
+  var email = document.getElementById("co-email").value.trim();
   if (!name||!email) return showToast("Remplissez nom et email","err");
-  document.getElementById("co-body").style.display="none";
-  document.getElementById("co-proc").style.display="block";
-  try {
-    if (linkPreview) {
-      // Appel réel : const r=await fetch(`${BACKEND}/api/payments/initiate`,{...}); window.location.href=r.data.checkoutUrl;
-      await new Promise(r=>setTimeout(r,2600));
-      const ref=`F2K-${Date.now().toString(36).toUpperCase()}`;
-      await addDoc(collection(db,"transactions"),{merchantId:linkPreview.uid,linkId:linkPreview.id,customerName:name,customerEmail:email,amount:linkPreview.amount,currency:linkPreview.currency||"XOF",method:"Mobile Money",status:"success",reference:ref,createdAt:serverTimestamp()});
-      const fs=await getDoc(doc(db,"users",linkPreview.uid)); const bal=fs.data()?.balance||0;
-      // Répartition : Moneroo 2.5% + F2KPay 2% = 4.5% de frais total
-      // Marchand reçoit 95.5% du montant brut
-      const MONEROO_FEE = 0.025;   // 2.5% — part Moneroo
-      const F2KPAY_FEE  = 0.02;    // 2%   — votre commission
-      const MERCHANT_RATE = 1 - MONEROO_FEE - F2KPAY_FEE; // 95.5%
-      const grossAmount   = linkPreview.amount;
-      const merchantNet   = Math.floor(grossAmount * MERCHANT_RATE);
-      const f2kCommission = Math.floor(grossAmount * F2KPAY_FEE);
+  document.getElementById("co-body").style.display = "none";
+  document.getElementById("co-proc").style.display = "block";
+  var MONEROO = 0.025, F2K = 0.02;
+  var ref = "F2K-" + Date.now().toString(36).toUpperCase();
+  var save = LP
+    ? db.collection("transactions").add({
+        merchantId:LP.uid, linkId:LP.id, customerName:name, customerEmail:email,
+        amount:LP.amount, currency:LP.currency||"XOF", method:"Mobile Money",
+        status:"success", reference:ref, createdAt:FS.serverTimestamp()
+      })
+      .then(function(){ return db.collection("users").doc(LP.uid).get(); })
+      .then(function(fs){ return db.collection("users").doc(LP.uid).update({balance:(fs.data().balance||0)+Math.floor(LP.amount*(1-MONEROO-F2K))}); })
+      .then(function(){ return db.collection("users").where("email","==",ADMIN_EMAIL).get(); })
+      .then(function(as){ if(!as.empty){ var ad=as.docs[0]; return db.collection("users").doc(ad.id).update({commissionWallet:(ad.data().commissionWallet||0)+Math.floor(LP.amount*F2K)}); } })
+    : Promise.resolve();
 
-      await updateDoc(doc(db,"users",linkPreview.uid),{balance:bal + merchantNet});
-
-      // Créditer le wallet admin (votre commission)
-      const adminSnap = await getDocs(query(collection(db,"users"),where("email","==",ADMIN_EMAIL)));
-      if (!adminSnap.empty) {
-        const adminDoc = adminSnap.docs[0];
-        const adminBal = adminDoc.data()?.commissionWallet || 0;
-        await updateDoc(doc(db,"users",adminDoc.id),{ commissionWallet: adminBal + f2kCommission });
-      }
-    }
-    document.getElementById("co-proc").style.display="none";
-    document.getElementById("co-succ").style.display="block";
-    document.getElementById("co-ref").textContent=`Réf: F2K-${Date.now().toString(36).toUpperCase()} · Sécurisé par F2KPay`;
-  } catch { document.getElementById("co-proc").style.display="none"; document.getElementById("co-err").style.display="block"; }
-};
-window.resetCo = () => { document.getElementById("co-body").style.display="block"; ["co-proc","co-succ","co-err"].forEach(id=>document.getElementById(id).style.display="none"); };
+  setTimeout(function(){
+    save.then(function(){
+      document.getElementById("co-proc").style.display = "none";
+      document.getElementById("co-succ").style.display = "block";
+      document.getElementById("co-ref").textContent = "Réf: "+ref+" · Sécurisé par F2KPay";
+    }).catch(function(){
+      document.getElementById("co-proc").style.display = "none";
+      document.getElementById("co-err").style.display = "block";
+    });
+  }, 2600);
+}
+function resetCo() {
+  document.getElementById("co-body").style.display = "block";
+  ["co-proc","co-succ","co-err"].forEach(function(id){ document.getElementById(id).style.display="none"; });
+}
 
 // ══════════════════════════════════════════
 //  API KEYS
 // ══════════════════════════════════════════
-let skVisible = false;
-let currentSK = "";
-
 function genKey(prefix) {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let key = prefix + '_';
-  for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
-  return key;
+  var k = prefix+"_", c = "abcdefghijklmnopqrstuvwxyz0123456789";
+  for(var i=0;i<32;i++) k += c[Math.floor(Math.random()*c.length)];
+  return k;
 }
-
-window.generateAPIKeys = async () => {
+function genAPIKeys() {
   if (!CU) return;
-  const btn = document.getElementById("btn-gen-keys");
-  const txt = document.getElementById("gen-keys-txt");
-  btn.disabled = true; txt.textContent = "Génération...";
-
-  const pk = genKey("pk_live");
-  const sk = genKey("sk_live");
-
-  try {
-    await setDoc(doc(db, "apiKeys", CU.uid), {
-      uid: CU.uid,
-      publicKey: pk,
-      secretKey: sk,
-      webhookUrl: "",
-      webhookEvents: ["payment.success", "payment.failed"],
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    displayAPIKeys(pk, sk);
-    showToast("Clés API générées !");
-  } catch(e) { showToast("Erreur : " + e.message, "err"); }
-  btn.disabled = false; txt.textContent = "Régénérer les clés";
-};
-
-function displayAPIKeys(pk, sk) {
-  document.getElementById("api-pk").textContent = pk;
-  currentSK = sk;
-  document.getElementById("api-sk").textContent = "••••••••••••••••••••••••••••••••••••";
-  document.getElementById("api-sk-real").textContent = sk;
-  skVisible = false;
-  document.getElementById("gen-keys-txt").textContent = "Régénérer les clés";
+  setBtnLoad("btn-gen-keys",true);
+  var pk = genKey("pk_live"), sk = genKey("sk_live");
+  db.collection("apiKeys").doc(CU.uid).set({
+    uid:CU.uid, publicKey:pk, secretKey:sk, webhookUrl:"",
+    webhookEvents:["payment.success","payment.failed"],
+    createdAt:FS.serverTimestamp(), updatedAt:FS.serverTimestamp()
+  }).then(function(){
+    displayKeys(pk,sk); showToast("Clés API générées !");
+  }).catch(function(e){ showToast("Erreur : "+e.message,"err"); })
+  .finally(function(){ document.getElementById("btn-gen-keys") && (document.getElementById("btn-gen-keys").disabled=false); document.getElementById("gen-key-txt").textContent="Régénérer les clés"; });
 }
-
-window.toggleSK = () => {
-  skVisible = !skVisible;
-  const el = document.getElementById("api-sk");
-  el.textContent = skVisible ? currentSK : "••••••••••••••••••••••••••••••••••••";
-  document.getElementById("btn-toggle-sk").innerHTML = `<i class="ti ti-${skVisible?'eye-off':'eye'}" style="font-size:13px"></i>`;
-};
-
-window.copyKey = (id) => {
-  const el = document.getElementById(id);
-  const text = el.textContent;
-  if (!text || text.startsWith("•") || text === "Générez vos clés ci-dessous") return showToast("Générez d'abord vos clés","warn");
-  navigator.clipboard.writeText(text).catch(()=>{});
+function displayKeys(pk,sk) {
+  document.getElementById("api-pk").value = pk;
+  SK_VAL = sk; SK_VIS = false;
+  document.getElementById("api-sk").value = "••••••••••••••••••••••••••••••••";
+  document.getElementById("gen-key-txt").textContent = "Régénérer les clés";
+}
+function toggleSK() {
+  SK_VIS = !SK_VIS;
+  document.getElementById("api-sk").value = SK_VIS ? SK_VAL : "••••••••••••••••••••••••••••••••";
+  document.getElementById("btn-sk-eye").innerHTML = '<i class="ti ti-'+(SK_VIS?"eye-off":"eye")+'"></i>';
+}
+function copyKey(id) {
+  var v = document.getElementById(id).value;
+  if (!v || v.startsWith("•") || v.startsWith("Générez")) return showToast("Générez d'abord vos clés","warn");
+  navigator.clipboard.writeText(v).catch(function(){});
   showToast("Clé copiée !");
-};
-
-window.revokeAPIKeys = async () => {
-  if (!CU) return;
-  if (!confirm("Révoquer vos clés API ? Toutes vos intégrations cesseront de fonctionner.")) return;
-  try {
-    await updateDoc(doc(db,"apiKeys",CU.uid), {
-      publicKey: "REVOKED", secretKey: "REVOKED", updatedAt: serverTimestamp()
+}
+function revokeAPIKeys() {
+  if (!CU || !confirm("Révoquer vos clés API ?")) return;
+  db.collection("apiKeys").doc(CU.uid).update({publicKey:"REVOKED",secretKey:"REVOKED",updatedAt:FS.serverTimestamp()})
+    .then(function(){
+      document.getElementById("api-pk").value = "Clés révoquées — Régénérez";
+      document.getElementById("api-sk").value = "••••••••••••••••••••";
+      SK_VAL=""; document.getElementById("gen-key-txt").textContent="Générer mes clés";
+      showToast("Clés révoquées");
     });
-    document.getElementById("api-pk").textContent = "Clés révoquées — Régénérez";
-    document.getElementById("api-sk").textContent = "••••••••••••••••••••••••";
-    currentSK = "";
-    document.getElementById("gen-keys-txt").textContent = "Générer mes clés API";
-    showToast("Clés révoquées");
-  } catch(e) { showToast("Erreur","err"); }
-};
-
-window.saveWebhook = async () => {
+}
+function saveWebhook() {
   if (!CU) return;
-  const url = document.getElementById("webhook-url").value.trim();
+  var url = document.getElementById("wh-url").value.trim();
   if (url && !url.startsWith("http")) return showToast("URL invalide","err");
-  const events = [];
-  if (document.getElementById("wh-success").checked) events.push("payment.success");
-  if (document.getElementById("wh-failed").checked) events.push("payment.failed");
-  if (document.getElementById("wh-refund").checked) events.push("payment.refunded");
-  try {
-    await updateDoc(doc(db,"apiKeys",CU.uid), { webhookUrl: url, webhookEvents: events, updatedAt: serverTimestamp() });
-    showToast("Webhook enregistré !");
-  } catch {
-    // Si le doc n'existe pas encore
-    await setDoc(doc(db,"apiKeys",CU.uid), { uid:CU.uid, webhookUrl:url, webhookEvents:events, publicKey:"", secretKey:"", createdAt:serverTimestamp(), updatedAt:serverTimestamp() });
-    showToast("Webhook enregistré !");
-  }
-};
-
-window.switchCodeTab = (id, btn) => {
-  document.querySelectorAll(".code-pane").forEach(p => p.classList.remove("on"));
-  document.querySelectorAll("#t-api .tab-btn").forEach(b => b.classList.remove("on"));
-  document.getElementById(id).classList.add("on");
-  btn.classList.add("on");
-};
-
-async function loadAPIKeys() {
+  db.collection("apiKeys").doc(CU.uid).set({uid:CU.uid,webhookUrl:url,updatedAt:FS.serverTimestamp()},{merge:true})
+    .then(function(){ showToast("Webhook enregistré !"); });
+}
+function loadAPIKeys() {
   if (!CU) return;
-  try {
-    const snap = await getDoc(doc(db,"apiKeys",CU.uid));
-    if (snap.exists()) {
-      const d = snap.data();
-      if (d.publicKey && d.publicKey !== "REVOKED") {
-        displayAPIKeys(d.publicKey, d.secretKey);
-      } else {
-        document.getElementById("gen-keys-txt").textContent = "Générer mes clés API";
-      }
-      if (d.webhookUrl) document.getElementById("webhook-url").value = d.webhookUrl;
-      if (d.webhookEvents) {
-        document.getElementById("wh-success").checked = d.webhookEvents.includes("payment.success");
-        document.getElementById("wh-failed").checked = d.webhookEvents.includes("payment.failed");
-        document.getElementById("wh-refund").checked = d.webhookEvents.includes("payment.refunded");
-      }
-    }
-  } catch(e) { console.log("Pas encore de clés API"); }
+  db.collection("apiKeys").doc(CU.uid).get()
+    .then(function(snap){
+      if(!snap.exists) return;
+      var d = snap.data();
+      if (d.publicKey && d.publicKey!=="REVOKED") displayKeys(d.publicKey,d.secretKey);
+      if (d.webhookUrl) document.getElementById("wh-url").value = d.webhookUrl;
+    }).catch(function(){});
 }
 
 // ══════════════════════════════════════════
 //  ROUTING (liens publics ?pay=slug)
 // ══════════════════════════════════════════
-(async () => {
-  const slug=new URLSearchParams(location.search).get("pay");
+(function(){
+  var slug = new URLSearchParams(location.search).get("pay");
   if (!slug) return;
-  const q=query(collection(db,"paymentLinks"),where("slug","==",slug),where("isActive","==",true));
-  const s=await getDocs(q);
-  if (s.empty) { showToast("Lien introuvable ou désactivé","err"); return; }
-  const l=s.docs[0].data(); linkPreview={id:s.docs[0].id,...l};
-  document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
-  document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
-  document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
-  document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
-  document.getElementById("co-desc").textContent=l.description||l.name;
-  document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
-  document.querySelector("nav").style.display="none";
-  goPage("checkout-pg");
+  db.collection("paymentLinks").where("slug","==",slug).where("isActive","==",true).get()
+    .then(function(s){
+      if (s.empty) { showToast("Lien introuvable ou désactivé","err"); return; }
+      var l = s.docs[0].data(); LP = {id:s.docs[0].id,uid:l.uid,amount:l.amount,currency:l.currency,name:l.name,description:l.description,merchantName:l.merchantName};
+      document.getElementById("co-mname").textContent  = l.merchantName||"Vendeur";
+      document.getElementById("co-logo").textContent   = (l.merchantName||"F2K").slice(0,2).toUpperCase();
+      document.getElementById("co-cur").textContent    = (l.currency||"XOF")+" ";
+      document.getElementById("co-amt").textContent    = (l.amount||0).toLocaleString();
+      document.getElementById("co-desc").textContent   = l.description||l.name;
+      document.getElementById("co-pay-amt").textContent= (l.amount||0).toLocaleString()+" "+(l.currency||"XOF");
+      document.querySelector("nav").style.display = "none";
+      goPage("checkout-pg");
+    });
 })();
-
 </script>
 </body>
 </html>
