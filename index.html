@@ -981,10 +981,707 @@ window._loaderTimeout = setTimeout(function() {
 </script>
 
 <!-- ════════════════ FIREBASE + LOGIC ════════════════ -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, updateDoc, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBHKolLJdXsK1THnzr79Gb8stD_GUZDfQg",
+  authDomain: "f2k-pay.firebaseapp.com",
+  projectId: "f2k-pay",
+  storageBucket: "f2k-pay.firebasestorage.app",
+  messagingSenderId: "593460943860",
+  appId: "1:593460943860:web:940b6c6b0d74d7981637a1",
+  measurementId: "G-XEQ9TF9NRH"
+};
+
+const CDN = {
+  cloud: "dlso5jnql",
+  preset: "VOTRE_UPLOAD_PRESET",
+};
+
+const BACKEND = "https://f2kpay-backend.onrender.com";
+const ADMIN_EMAIL = "f2kmultiservice@gmail.com";
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Activer la persistance hors ligne
+db.enablePersistence().catch(() => {});
+
+let CU = null;
+let UD = null;
+let linkPreview = null;
+
+// ══ UI HELPERS ══
+const pages = ["landing","auth-pg","dash-pg","admin-pg","checkout-pg"];
+window.goPage = id => {
+  pages.forEach(p => { const e=document.getElementById(p); e.classList.remove("on"); e.style.display="none"; });
+  document.querySelectorAll(".nl").forEach(n=>n.classList.remove("on"));
+  const el=document.getElementById(id);
+  el.classList.add("on"); el.style.display="block";
+  const map={landing:"nl-home","dash-pg":"nl-dash","admin-pg":"nl-admin"};
+  if(map[id]) document.getElementById(map[id])?.classList.add("on");
+  window.scrollTo(0,0);
+};
+pages.forEach(p=>{ const e=document.getElementById(p); if(!e.classList.contains("on")) e.style.display="none"; });
+
+window.showToast = (msg, type="ok") => {
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove("show"),3500);
+};
+window.openModal = id => {
+  if(id==="m-kyc") setupKYCModal();
+  document.getElementById(id).classList.add("show");
+};
+window.closeModal = id => document.getElementById(id).classList.remove("show");
+
+window.switchTab = (id,btn) => {
+  document.querySelectorAll("#dash-pg .tab-pane").forEach(p=>p.classList.remove("on"));
+  document.querySelectorAll("#dash-pg .tab-btn").forEach(b=>b.classList.remove("on"));
+  document.getElementById(id).classList.add("on"); btn.classList.add("on");
+};
+window.switchAdTab = (id,btn) => {
+  document.querySelectorAll("#admin-pg .tab-pane").forEach(p=>p.classList.remove("on"));
+  document.querySelectorAll("#admin-pg .tab-btn").forEach(b=>b.classList.remove("on"));
+  document.getElementById(id).classList.add("on"); btn.classList.add("on");
+};
+
+// ══ AUTH ══
+window.showAuth = mode => { goPage("auth-pg"); switchAuth(mode); };
+window.switchAuth = mode => {
+  document.getElementById("login-form").style.display=mode==="login"?"block":"none";
+  document.getElementById("reg-form").style.display=mode==="register"?"block":"none";
+  document.getElementById("at-login").classList.toggle("on",mode==="login");
+  document.getElementById("at-reg").classList.toggle("on",mode==="register");
+  document.getElementById("auth-sub").textContent=mode==="login"?"Connectez-vous à votre dashboard":"Créez votre compte marchand F2KPay";
+};
+
+window.doLogin = () => {
+  const email=document.getElementById("l-email").value.trim();
+  const pass=document.getElementById("l-pass").value;
+  if(!email||!pass) return showToast("Remplissez tous les champs","err");
+  const btn=document.getElementById("btn-login");
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Connexion...';
+  auth.signInWithEmailAndPassword(email,pass)
+    .catch(e=>{
+      let msg="Email ou mot de passe incorrect";
+      if(e.code==="auth/too-many-requests") msg="Trop de tentatives. Réessayez plus tard.";
+      if(e.code==="auth/network-request-failed") msg="Erreur réseau. Vérifiez votre connexion.";
+      if(e.code==="auth/user-not-found") msg="Aucun compte avec cet email.";
+      if(e.code==="auth/wrong-password") msg="Mot de passe incorrect.";
+      showToast(msg,"err");
+      btn.disabled=false;
+      btn.innerHTML='<i class="ti ti-login"></i> Se connecter';
+    });
+};
+
+window.doRegister = () => {
+  const fn=document.getElementById("r-fn").value.trim();
+  const ln=document.getElementById("r-ln").value.trim();
+  const email=document.getElementById("r-email").value.trim();
+  const phone=document.getElementById("r-phone").value.trim();
+  const pass=document.getElementById("r-pass").value;
+  if(!fn||!ln||!email||!pass) return showToast("Remplissez les champs obligatoires","err");
+  if(pass.length<8) return showToast("Mot de passe : minimum 8 caractères","err");
+  const btn=document.getElementById("btn-reg");
+  btn.disabled=true; btn.textContent="Création...";
+  auth.createUserWithEmailAndPassword(email,pass)
+    .then(cred=>{
+      return db.collection("users").doc(cred.user.uid).set({
+        uid:cred.user.uid, firstName:fn, lastName:ln, email, phone,
+        role:email===ADMIN_EMAIL?"admin":"merchant",
+        status:"active",
+        kycStatus:email===ADMIN_EMAIL?"approved":"none",
+        balance:0, commissionWallet:0,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    })
+    .then(()=>showToast("Compte créé !"))
+    .catch(e=>{
+      showToast(e.code==="auth/email-already-in-use"?"Email déjà utilisé":"Erreur : "+e.message,"err");
+      btn.disabled=false;
+      btn.innerHTML='<i class="ti ti-user-plus"></i> Créer mon compte';
+    });
+};
+
+window.doReset = () => {
+  const email=document.getElementById("l-email").value.trim();
+  if(!email) return showToast("Entrez votre email d'abord","warn");
+  auth.sendPasswordResetEmail(email)
+    .then(()=>showToast("Email de réinitialisation envoyé !"))
+    .catch(()=>showToast("Email introuvable","err"));
+};
+
+window.logout = () => {
+  auth.signOut().then(()=>{ goPage("landing"); showToast("Déconnexion réussie"); });
+};
+
+// ══ AUTH STATE OBSERVER ══
+auth.onAuthStateChanged(user=>{
+  clearTimeout(window._loaderTimeout);
+  document.getElementById("loader").classList.add("hide");
+  const btnLogin=document.getElementById("btn-login");
+  if(btnLogin){btnLogin.disabled=false;btnLogin.innerHTML='<i class="ti ti-login"></i> Se connecter';}
+
+  if(user){
+    CU=user;
+    db.collection("users").doc(user.uid).get()
+      .then(async snap=>{
+        // Si le profil n'existe pas dans Firestore (compte créé avec ancien fichier)
+        // on le crée automatiquement
+        if(!snap.exists){
+          const email = user.email || "";
+          await db.collection("users").doc(user.uid).set({
+            uid: user.uid,
+            firstName: user.displayName ? user.displayName.split(" ")[0] : email.split("@")[0],
+            lastName: user.displayName ? user.displayName.split(" ").slice(1).join(" ") : "",
+            email: email,
+            phone: "",
+            role: email === ADMIN_EMAIL ? "admin" : "merchant",
+            status: "active",
+            kycStatus: email === ADMIN_EMAIL ? "approved" : "none",
+            balance: 0,
+            commissionWallet: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          // Recharger le profil créé
+          return db.collection("users").doc(user.uid).get();
+        }
+        return snap;
+      })
+      .then(snap=>{
+        UD=snap.data();
+        document.getElementById("nav-guest").style.display="none";
+        document.getElementById("nav-user").style.display="flex";
+        document.getElementById("nav-name").textContent=UD.firstName||"";
+        const initials=((UD.firstName||"?")[0]+(UD.lastName||"?")[0]).toUpperCase();
+        document.getElementById("nav-av").textContent=initials;
+        if(UD.kycStatus==="pending") document.getElementById("av-dot").style.display="block";
+        if(UD.role==="admin"){
+          document.getElementById("nl-admin").style.display="flex";
+          document.getElementById("nl-dash").style.display="none";
+          goPage("admin-pg"); loadAdmin();
+        } else {
+          if(UD.status==="disabled"){
+            auth.signOut();
+            showToast("Compte désactivé. Contactez f2kmultiservice@gmail.com","err");
+            return goPage("landing");
+          }
+          document.getElementById("nl-dash").style.display="flex";
+          document.getElementById("nl-admin").style.display="none";
+          goPage("dash-pg"); loadDash();
+        }
+      })
+      .catch(e=>{
+        console.error("Firestore get error:",e.code,e.message);
+        showToast("Erreur ("+e.code+") — réessayez","err");
+        auth.signOut();
+        goPage("auth-pg");
+      });
+  } else {
+    CU=null; UD=null;
+    document.getElementById("nav-guest").style.display="flex";
+    document.getElementById("nav-user").style.display="none";
+    document.getElementById("nl-dash").style.display="none";
+    document.getElementById("nl-admin").style.display="none";
+  }
+});
+
+// ══ DASHBOARD MARCHAND ══
+function loadDash(){
+  if(!CU) return;
+  document.getElementById("dash-hi").textContent=`Bonjour, ${UD.firstName} 👋`;
+  document.getElementById("dash-date").textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  updateKYCBanner(UD.kycStatus);
+  const wlocked=document.getElementById("wd-locked"),wform=document.getElementById("wd-form");
+  if(UD.kycStatus==="approved"){wlocked.style.display="none";wform.style.display="block";}
+  else{wlocked.style.display="block";wform.style.display="none";}
+
+  db.collection("paymentLinks").where("uid","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(ls=>{ const links=[]; ls.forEach(d=>links.push({id:d.id,...d.data()}));
+      document.getElementById("m-lnk").textContent=links.filter(l=>l.isActive).length;
+      renderLinks(links);
+    }).catch(e=>console.error("links:",e));
+
+  db.collection("transactions").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(ts=>{ const txs=[]; ts.forEach(d=>txs.push({id:d.id,...d.data()}));
+      renderTx(txs);
+      const rev=txs.filter(t=>t.status==="success").reduce((s,t)=>s+(t.amount||0),0);
+      document.getElementById("m-rev").textContent=rev.toLocaleString();
+      document.getElementById("m-tx").textContent=txs.length;
+    }).catch(e=>console.error("txs:",e));
+
+  db.collection("users").doc(CU.uid).get()
+    .then(fs=>{ document.getElementById("m-bal").textContent=(fs.data()?.balance||0).toLocaleString(); })
+    .catch(e=>console.error("balance:",e));
+
+  db.collection("withdrawals").where("merchantId","==",CU.uid).orderBy("createdAt","desc").get()
+    .then(ws=>{ const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()})); renderWD(wds); })
+    .catch(e=>console.error("withdrawals:",e));
+
+  loadAPIKeys();
+  renderChart();
+}
+
+function updateKYCBanner(status){
+  const b=document.getElementById("kyc-banner");
+  const icons={none:"⚠️",pending:"⏳",approved:"✅",rejected:"❌"};
+  const titles={none:"KYC requis",pending:"KYC en examen",approved:"KYC approuvé",rejected:"KYC rejeté"};
+  const texts={none:"Soumettez vos documents pour activer les retraits.",pending:"Vos documents sont en cours de vérification (24-48h).",approved:"Votre identité est vérifiée. Retraits activés.",rejected:"Documents rejetés. Soumettez-en de nouveaux."};
+  b.className=`kyc-banner ${status||"none"}`;
+  document.getElementById("kb-icon").textContent=icons[status]||"⚠️";
+  document.getElementById("kb-title").textContent=titles[status]||"KYC requis";
+  document.getElementById("kb-text").textContent=texts[status]||"";
+  const btn=document.getElementById("kb-btn");
+  if(status==="approved") btn.style.display="none";
+  else{btn.style.display="";btn.textContent=status==="pending"?"Voir mon KYC":"Soumettre";}
+}
+
+function renderLinks(links){
+  const tb=document.getElementById("tb-links");
+  if(!links.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-link"></i>Aucun lien créé</div></td></tr>`;return;}
+  tb.innerHTML=links.map(l=>`<tr>
+    <td><strong style="font-size:12px">${l.name}</strong></td>
+    <td><strong style="color:var(--gd)">${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}</strong></td>
+    <td><span class="badge ${l.isActive?'b-ok':'b-grey'}">${l.isActive?'Actif':'Inactif'}</span></td>
+    <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn-xs bx-g" onclick="prevLink('${l.id}')">👁</button>
+      <button class="btn-xs bx-grey" onclick="copyLink('${l.slug}')">📋</button>
+      <button class="btn-xs bx-r" onclick="togLink('${l.id}',${l.isActive})">${l.isActive?'Off':'On'}</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderTx(txs){
+  const tb=document.getElementById("tb-tx");
+  if(!txs.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-receipt"></i>Aucune transaction</div></td></tr>`;return;}
+  tb.innerHTML=txs.map(t=>`<tr>
+    <td>${t.customerName||'—'}</td>
+    <td><strong>${(t.amount||0).toLocaleString()} ${t.currency||'XOF'}</strong></td>
+    <td>${t.method||'—'}</td>
+    <td>${t.createdAt?.toDate?t.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><span class="badge ${t.status==='success'?'b-ok':t.status==='pending'?'b-wait':'b-ko'}">${t.status==='success'?'✓':t.status==='pending'?'⏳':'✗'}</span></td>
+  </tr>`).join("");
+}
+
+function renderWD(wds){
+  const tb=document.getElementById("tb-wd");
+  if(!wds.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-cash"></i>Aucun retrait</div></td></tr>`;return;}
+  tb.innerHTML=wds.map(w=>`<tr>
+    <td>${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><strong>${(w.amount||0).toLocaleString()} XOF</strong></td>
+    <td style="font-size:11px">${w.method||'—'}</td>
+    <td><span class="badge ${w.status==='approved'?'b-ok':w.status==='pending'?'b-wait':'b-ko'}">${w.status==='approved'?'✓ Approuvé':w.status==='pending'?'⏳ Attente':'✗ Rejeté'}</span></td>
+  </tr>`).join("");
+}
+
+function renderChart(){
+  const days=["L","M","M","J","V","S","D"],vals=[42,68,38,82,57,95,74],mx=Math.max(...vals);
+  const ch=document.getElementById("chart");
+  if(ch) ch.innerHTML=days.map((d,i)=>`<div class="bg2"><div class="bb${i===5?" hi":""}" style="height:${Math.round((vals[i]/mx)*64)}px"></div><div class="bbl">${d}</div></div>`).join("");
+}
+
+// ══ ACTIONS MARCHANDS ══
+window.prevLink = id => {
+  db.collection("paymentLinks").doc(id).get().then(s=>{
+    if(!s.exists) return;
+    const l=s.data(); linkPreview={id,...l};
+    document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
+    document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
+    document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
+    document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
+    document.getElementById("co-desc").textContent=l.description||l.name;
+    document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
+    goPage("checkout-pg");
+  });
+};
+
+window.copyLink = slug => {
+  navigator.clipboard.writeText(`${location.origin}${location.pathname}?pay=${slug}`).catch(()=>{});
+  showToast("Lien copié !");
+};
+
+window.togLink = (id,active) => {
+  db.collection("paymentLinks").doc(id).update({isActive:!active})
+    .then(()=>{ showToast(!active?"Activé":"Désactivé"); loadDash(); })
+    .catch(e=>showToast("Erreur : "+e.message,"err"));
+};
+
+window.createLink = () => {
+  if(!CU||!UD) return showToast("Reconnectez-vous","err");
+  const name=document.getElementById("cl-name").value.trim();
+  const amt=document.getElementById("cl-amt").value;
+  const cur=document.getElementById("cl-cur").value;
+  const desc=document.getElementById("cl-desc").value.trim();
+  const redir=document.getElementById("cl-redir").value.trim();
+  if(!name||!amt) return showToast("Nom et montant requis","err");
+  if(Number(amt)<100) return showToast("Montant minimum : 100","err");
+  const btn=document.getElementById("btn-cl");
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Création...';
+  const slug=name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,20)+"-"+Math.random().toString(36).slice(2,7);
+  db.collection("paymentLinks").add({
+    uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`,
+    name, amount:Number(amt), currency:cur, description:desc, redirectUrl:redir,
+    slug, isActive:true, paymentCount:0,
+    paymentUrl:`${location.origin}${location.pathname}?pay=${slug}`,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+  }).then(()=>{
+    closeModal("m-link");
+    showToast("Lien créé !");
+    ["cl-name","cl-amt","cl-desc","cl-redir"].forEach(id=>document.getElementById(id).value="");
+    loadDash();
+  }).catch(e=>{
+    showToast("Erreur : "+e.message,"err");
+  }).finally(()=>{
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-link"></i> Créer le lien';
+  });
+};
+
+window.submitWithdrawal = () => {
+  if(!CU||UD?.kycStatus!=="approved") return showToast("KYC requis pour retirer","err");
+  const amt=Number(document.getElementById("wd-amt").value);
+  const meth=document.getElementById("wd-meth").value;
+  const phone=document.getElementById("wd-phone").value.trim();
+  if(!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
+  if(!phone) return showToast("Entrez un numéro de réception","err");
+  db.collection("users").doc(CU.uid).get().then(fs=>{
+    const bal=fs.data()?.balance||0;
+    if(amt>bal) return showToast(`Solde insuffisant (${bal.toLocaleString()} FCFA)`,"err");
+    return db.collection("withdrawals").add({
+      merchantId:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
+      amount:amt, method:meth, phone, status:"pending", type:"merchant",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }).then(()=>{
+    showToast("Demande soumise — l'admin validera sous 24h.");
+    document.getElementById("wd-amt").value="";
+    document.getElementById("wd-phone").value="";
+    loadDash();
+  }).catch(e=>showToast("Erreur : "+e.message,"err"));
+};
+
+// ══ KYC ══
+async function setupKYCModal(){
+  if(!CU) return;
+  const snap=await db.collection("kyc").doc(CU.uid).get();
+  const kyc=snap.exists?snap.data():null;
+  const sb=document.getElementById("kyc-status-box"),kf=document.getElementById("kyc-form");
+  if(kyc&&kyc.status!=="rejected"){
+    sb.style.display="block";
+    sb.className=`info-box ${kyc.status==="approved"?"success":"warn"}`;
+    sb.innerHTML=`<i class="ti ti-${kyc.status==="approved"?"check":"clock"}" style="vertical-align:-2px;margin-right:5px"></i>${kyc.status==="approved"?"✅ KYC approuvé.":"⏳ Documents en cours de vérification."}`;
+    kf.style.display=kyc.status==="approved"?"none":"block";
+  } else{sb.style.display="none";kf.style.display="block";}
+}
+
+window.prevFile = (input,prevId) => {
+  const p=document.getElementById(prevId); p.innerHTML="";
+  if(input.files?.[0]){const img=document.createElement("img");img.className="up-thumb";img.src=URL.createObjectURL(input.files[0]);p.appendChild(img);}
+};
+
+async function uploadCDN(file){
+  const fd=new FormData();
+  fd.append("file",file); fd.append("upload_preset",CDN.preset); fd.append("folder","f2kpay-kyc");
+  const res=await fetch(`https://api.cloudinary.com/v1_1/${CDN.cloud}/image/upload`,{method:"POST",body:fd});
+  const d=await res.json();
+  if(d.error) throw new Error(d.error.message);
+  return d.secure_url;
+}
+
+window.submitKYC = async () => {
+  const f=document.getElementById("kyc-f").files[0],b=document.getElementById("kyc-b").files[0],s=document.getElementById("kyc-s").files[0];
+  const type=document.getElementById("kyc-type").value;
+  if(!f||!b||!s) return showToast("Uploadez les 3 documents requis","err");
+  const btn=document.getElementById("btn-kyc");
+  btn.disabled=true; btn.textContent="Upload en cours...";
+  try{
+    const[fu,bu,su]=await Promise.all([uploadCDN(f),uploadCDN(b),uploadCDN(s)]);
+    await db.collection("kyc").doc(CU.uid).set({
+      uid:CU.uid, merchantName:`${UD.firstName} ${UD.lastName}`, merchantEmail:UD.email,
+      docType:type, frontUrl:fu, backUrl:bu, selfieUrl:su,
+      status:"pending", submittedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await db.collection("users").doc(CU.uid).update({kycStatus:"pending"});
+    UD.kycStatus="pending";
+    updateKYCBanner("pending");
+    document.getElementById("av-dot").style.display="block";
+    closeModal("m-kyc");
+    showToast("Documents soumis ! Réponse sous 48h.");
+  }catch(e){showToast("Erreur upload : "+e.message,"err");}
+  btn.disabled=false; btn.innerHTML='<i class="ti ti-send"></i> Soumettre mes documents';
+};
+
+// ══ ADMIN ══
+function loadAdmin(){
+  db.collection("users").where("email","==",ADMIN_EMAIL).get().then(as=>{
+    if(!as.empty){ const ad=as.docs[0].data(); document.getElementById("a-commission").textContent=(ad.commissionWallet||0).toLocaleString(); }
+  });
+  db.collection("users").where("role","==","merchant").get().then(ms=>{
+    const merch=[]; ms.forEach(d=>merch.push({id:d.id,...d.data()}));
+    document.getElementById("a-merch").textContent=merch.filter(m=>m.status==="active").length;
+    renderAdminMerch(merch);
+  });
+  db.collection("kyc").where("status","==","pending").get().then(ks=>{
+    const kycs=[]; ks.forEach(d=>kycs.push({id:d.id,...d.data()}));
+    document.getElementById("a-kyc").textContent=kycs.length;
+    renderAdminKYC(kycs);
+  });
+  db.collection("withdrawals").where("status","==","pending").where("type","==","merchant").get().then(ws=>{
+    const wds=[]; ws.forEach(d=>wds.push({id:d.id,...d.data()}));
+    document.getElementById("a-wd").textContent=wds.length;
+    renderAdminWD(wds);
+  });
+}
+
+function renderAdminMerch(list){
+  const tb=document.getElementById("atb-merch");
+  if(!list.length){tb.innerHTML=`<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i>Aucun marchand</div></td></tr>`;return;}
+  tb.innerHTML=list.map(m=>`<tr>
+    <td><div class="td-user"><div class="u-av">${(m.firstName||"?")[0]}${(m.lastName||"?")[0]}</div><div><div style="font-weight:500;font-size:12px">${m.firstName} ${m.lastName}</div><div style="font-size:10px;color:var(--hi)">${m.phone||""}</div></div></div></td>
+    <td style="font-size:11px"><a href="mailto:${m.email}" style="color:var(--g)">${m.email}</a></td>
+    <td><span class="badge ${m.kycStatus==="approved"?"b-ok":m.kycStatus==="pending"?"b-wait":m.kycStatus==="rejected"?"b-ko":"b-grey'}">${m.kycStatus==="approved"?"✓ OK":m.kycStatus==="pending"?"⏳":m.kycStatus==="rejected"?"✗":"—"}</span></td>
+    <td><span class="badge ${m.status==="active"?"b-ok":"b-ko'}">${m.status==="active"?"Actif":"Désactivé"}</span></td>
+    <td style="font-size:11px;font-weight:600">${(m.balance||0).toLocaleString()} XOF</td>
+    <td><div class="td-actions">
+      <button class="btn-xs ${m.status==="active"?"bx-r":"bx-g"}" onclick="togMerch('${m.id}','${m.status}')">${m.status==="active"?"Désact.":"Activer"}</button>
+      <button class="btn-xs bx-r" onclick="delMerch('${m.id}','${m.firstName}')">Suppr.</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderAdminKYC(kycs){
+  const tb=document.getElementById("atb-kyc");
+  if(!kycs.length){tb.innerHTML=`<tr><td colspan="4"><div class="empty"><i class="ti ti-id-badge"></i>Aucun KYC en attente</div></td></tr>`;return;}
+  tb.innerHTML=kycs.map(k=>`<tr>
+    <td><div style="font-size:12px;font-weight:500">${k.merchantName}</div><div style="font-size:10px;color:var(--hi)">${k.merchantEmail}</div></td>
+    <td><div style="display:flex;gap:5px">
+      <img src="${k.frontUrl}" class="kyc-thumb" alt="Recto" onclick="viewDoc('${k.frontUrl}','Recto · ${k.merchantName}','Pièce : ${k.docType}')">
+      <img src="${k.backUrl}" class="kyc-thumb" alt="Verso" onclick="viewDoc('${k.backUrl}','Verso · ${k.merchantName}','Pièce : ${k.docType}')">
+      <img src="${k.selfieUrl}" class="kyc-thumb" alt="Selfie" onclick="viewDoc('${k.selfieUrl}','Selfie · ${k.merchantName}','Selfie')">
+    </div></td>
+    <td style="font-size:11px">${k.submittedAt?.toDate?k.submittedAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><div class="td-actions">
+      <button class="btn-xs bx-g" onclick="apprKYC('${k.uid}')">✅ Approuver</button>
+      <button class="btn-xs bx-r" onclick="rejKYC('${k.uid}')">❌ Rejeter</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+function renderAdminWD(wds){
+  const tb=document.getElementById("atb-wd");
+  if(!wds.length){tb.innerHTML=`<tr><td colspan="5"><div class="empty"><i class="ti ti-cash"></i>Aucune demande</div></td></tr>`;return;}
+  tb.innerHTML=wds.map(w=>`<tr>
+    <td><div style="font-size:12px;font-weight:500">${w.merchantName}</div><div style="font-size:10px;color:var(--hi)">${w.merchantEmail}</div></td>
+    <td><strong style="color:var(--gd)">${(w.amount||0).toLocaleString()} XOF</strong></td>
+    <td style="font-size:11px"><code>${w.phone||'—'}</code></td>
+    <td style="font-size:11px">${w.createdAt?.toDate?w.createdAt.toDate().toLocaleDateString('fr-FR'):'—'}</td>
+    <td><div class="td-actions">
+      <button class="btn-xs bx-g" onclick="apprWD('${w.id}','${w.merchantId}',${w.amount})">✅ Approuver</button>
+      <button class="btn-xs bx-r" onclick="rejWD('${w.id}')">❌ Rejeter</button>
+    </div></td>
+  </tr>`).join("");
+}
+
+window.togMerch = (uid,status) => {
+  db.collection("users").doc(uid).update({status:status==="active"?"disabled":"active"})
+    .then(()=>{ showToast(status==="active"?"Compte désactivé":"Compte activé"); loadAdmin(); });
+};
+window.delMerch = (uid,name) => {
+  if(!confirm(`Supprimer le compte de ${name} ?`)) return;
+  db.collection("users").doc(uid).update({status:"deleted",deletedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>{ showToast(`${name} supprimé`); loadAdmin(); });
+};
+window.viewDoc = (url,title,sub) => {
+  document.getElementById("doc-img").src=url;
+  document.getElementById("doc-title").textContent=title;
+  document.getElementById("doc-sub").textContent=sub;
+  document.getElementById("m-doc").classList.add("show");
+};
+window.apprKYC = uid => {
+  db.collection("kyc").doc(uid).update({status:"approved",reviewedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>db.collection("users").doc(uid).update({kycStatus:"approved"}))
+    .then(()=>{ showToast("KYC approuvé ✅"); loadAdmin(); });
+};
+window.rejKYC = uid => {
+  const r=prompt("Raison du rejet :"); if(r===null) return;
+  db.collection("kyc").doc(uid).update({status:"rejected",rejectionReason:r,reviewedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>db.collection("users").doc(uid).update({kycStatus:"rejected"}))
+    .then(()=>{ showToast("KYC rejeté"); loadAdmin(); });
+};
+window.apprWD = (wid,mid,amt) => {
+  if(!confirm(`Approuver ${amt.toLocaleString()} XOF ?`)) return;
+  db.collection("withdrawals").doc(wid).update({status:"approved",approvedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>db.collection("users").doc(mid).get())
+    .then(fs=>db.collection("users").doc(mid).update({balance:Math.max(0,(fs.data()?.balance||0)-amt)}))
+    .then(()=>{ showToast("Retrait approuvé ✅"); loadAdmin(); });
+};
+window.rejWD = wid => {
+  const r=prompt("Raison du rejet :"); if(r===null) return;
+  db.collection("withdrawals").doc(wid).update({status:"rejected",rejectionReason:r,rejectedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>{ showToast("Rejeté"); loadAdmin(); });
+};
+window.adminWithdrawal = () => {
+  const amt=Number(document.getElementById("adm-amt").value);
+  const meth=document.getElementById("adm-meth").value;
+  const phone=document.getElementById("adm-phone").value.trim();
+  const note=document.getElementById("adm-note").value.trim();
+  if(!amt||amt<1000) return showToast("Minimum 1 000 FCFA","err");
+  if(!phone) return showToast("Entrez un numéro","err");
+  db.collection("withdrawals").add({
+    merchantId:CU.uid, merchantName:"ADMIN F2KPay", merchantEmail:"f2kmultiservice@gmail.com",
+    amount:amt, method:meth, phone, note, status:"approved", type:"admin",
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+  }).then(()=>{ showToast("Demande envoyée à Moneroo ✅"); document.getElementById("adm-amt").value=""; document.getElementById("adm-phone").value=""; });
+};
+
+// ══ CHECKOUT ══
+window.swCo = (btn,tab) => {
+  document.querySelectorAll(".ct").forEach(t=>t.classList.remove("on")); btn.classList.add("on");
+  document.getElementById("co-mob").style.display=tab==="co-mob"?"block":"none";
+  document.getElementById("co-card").style.display=tab==="co-card"?"block":"none";
+};
+window.selPM = el => { document.querySelectorAll(".pm").forEach(m=>m.classList.remove("sel")); el.classList.add("sel"); };
+window.doPay = () => {
+  const name=document.getElementById("co-name").value.trim();
+  const email=document.getElementById("co-email").value.trim();
+  if(!name||!email) return showToast("Remplissez nom et email","err");
+  document.getElementById("co-body").style.display="none";
+  document.getElementById("co-proc").style.display="block";
+  const MONEROO_FEE=0.025, F2KPAY_FEE=0.02;
+  const MERCHANT_RATE=1-MONEROO_FEE-F2KPAY_FEE;
+  const ref=`F2K-${Date.now().toString(36).toUpperCase()}`;
+  const doSave = linkPreview
+    ? db.collection("transactions").add({
+        merchantId:linkPreview.uid, linkId:linkPreview.id,
+        customerName:name, customerEmail:email,
+        amount:linkPreview.amount, currency:linkPreview.currency||"XOF",
+        method:"Mobile Money", status:"success", reference:ref,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      }).then(()=>db.collection("users").doc(linkPreview.uid).get())
+        .then(fs=>db.collection("users").doc(linkPreview.uid).update({
+          balance:(fs.data()?.balance||0)+Math.floor(linkPreview.amount*MERCHANT_RATE)
+        }))
+        .then(()=>db.collection("users").where("email","==",ADMIN_EMAIL).get())
+        .then(as=>{
+          if(!as.empty){
+            const ad=as.docs[0];
+            return db.collection("users").doc(ad.id).update({
+              commissionWallet:(ad.data()?.commissionWallet||0)+Math.floor(linkPreview.amount*F2KPAY_FEE)
+            });
+          }
+        })
+    : Promise.resolve();
+
+  setTimeout(()=>{
+    doSave.then(()=>{
+      document.getElementById("co-proc").style.display="none";
+      document.getElementById("co-succ").style.display="block";
+      document.getElementById("co-ref").textContent=`Réf: ${ref} · Sécurisé par F2KPay`;
+    }).catch(()=>{
+      document.getElementById("co-proc").style.display="none";
+      document.getElementById("co-err").style.display="block";
+    });
+  },2600);
+};
+window.resetCo = () => {
+  document.getElementById("co-body").style.display="block";
+  ["co-proc","co-succ","co-err"].forEach(id=>document.getElementById(id).style.display="none");
+};
+
+// ══ API KEYS ══
+let skVisible=false, currentSK="";
+function genKey(prefix){ let k=prefix+"_"; const c="abcdefghijklmnopqrstuvwxyz0123456789"; for(let i=0;i<32;i++) k+=c[Math.floor(Math.random()*c.length)]; return k; }
+window.generateAPIKeys = () => {
+  if(!CU) return;
+  const btn=document.getElementById("btn-gen-keys"),txt=document.getElementById("gen-keys-txt");
+  btn.disabled=true; txt.textContent="Génération...";
+  const pk=genKey("pk_live"),sk=genKey("sk_live");
+  db.collection("apiKeys").doc(CU.uid).set({
+    uid:CU.uid, publicKey:pk, secretKey:sk, webhookUrl:"",
+    webhookEvents:["payment.success","payment.failed"],
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+  }).then(()=>{ displayAPIKeys(pk,sk); showToast("Clés API générées !"); })
+    .finally(()=>{ btn.disabled=false; txt.textContent="Régénérer les clés"; });
+};
+function displayAPIKeys(pk,sk){
+  document.getElementById("api-pk").textContent=pk;
+  currentSK=sk;
+  document.getElementById("api-sk").textContent="••••••••••••••••••••••••••••••••••••";
+  document.getElementById("api-sk-real").textContent=sk;
+  skVisible=false;
+  document.getElementById("gen-keys-txt").textContent="Régénérer les clés";
+}
+window.toggleSK = () => {
+  skVisible=!skVisible;
+  document.getElementById("api-sk").textContent=skVisible?currentSK:"••••••••••••••••••••••••••••••••••••";
+  document.getElementById("btn-toggle-sk").innerHTML=`<i class="ti ti-${skVisible?"eye-off":"eye"}" style="font-size:13px"></i>`;
+};
+window.copyKey = id => {
+  const el=document.getElementById(id);
+  const text=el.textContent;
+  if(!text||text.startsWith("•")||text==="Générez vos clés ci-dessous") return showToast("Générez d'abord vos clés","warn");
+  navigator.clipboard.writeText(text).catch(()=>{});
+  showToast("Clé copiée !");
+};
+window.revokeAPIKeys = () => {
+  if(!CU||!confirm("Révoquer vos clés API ?")) return;
+  db.collection("apiKeys").doc(CU.uid).update({publicKey:"REVOKED",secretKey:"REVOKED",updatedAt:firebase.firestore.FieldValue.serverTimestamp()})
+    .then(()=>{ document.getElementById("api-pk").textContent="Clés révoquées — Régénérez"; document.getElementById("api-sk").textContent="••••••••••••••••••••"; currentSK=""; document.getElementById("gen-keys-txt").textContent="Générer mes clés API"; showToast("Clés révoquées"); });
+};
+window.saveWebhook = () => {
+  if(!CU) return;
+  const url=document.getElementById("webhook-url").value.trim();
+  if(url&&!url.startsWith("http")) return showToast("URL invalide","err");
+  const events=[];
+  if(document.getElementById("wh-success").checked) events.push("payment.success");
+  if(document.getElementById("wh-failed").checked) events.push("payment.failed");
+  if(document.getElementById("wh-refund").checked) events.push("payment.refunded");
+  db.collection("apiKeys").doc(CU.uid).set({uid:CU.uid,webhookUrl:url,webhookEvents:events,publicKey:"",secretKey:"",createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true})
+    .then(()=>showToast("Webhook enregistré !"));
+};
+window.switchCodeTab = (id,btn) => {
+  document.querySelectorAll(".code-pane").forEach(p=>p.classList.remove("on"));
+  document.querySelectorAll("#t-api .tab-btn").forEach(b=>b.classList.remove("on"));
+  document.getElementById(id).classList.add("on"); btn.classList.add("on");
+};
+function loadAPIKeys(){
+  if(!CU) return;
+  db.collection("apiKeys").doc(CU.uid).get().then(snap=>{
+    if(!snap.exists) return;
+    const d=snap.data();
+    if(d.publicKey&&d.publicKey!=="REVOKED") displayAPIKeys(d.publicKey,d.secretKey);
+    if(d.webhookUrl) document.getElementById("webhook-url").value=d.webhookUrl;
+    if(d.webhookEvents){
+      document.getElementById("wh-success").checked=d.webhookEvents.includes("payment.success");
+      document.getElementById("wh-failed").checked=d.webhookEvents.includes("payment.failed");
+      document.getElementById("wh-refund").checked=d.webhookEvents.includes("payment.refunded");
+    }
+  }).catch(()=>{});
+}
+
+// ══ ROUTING (liens publics ?pay=slug) ══
+(()=>{
+  const slug=new URLSearchParams(location.search).get("pay");
+  if(!slug) return;
+  db.collection("paymentLinks").where("slug","==",slug).where("isActive","==",true).get()
+    .then(s=>{
+      if(s.empty){ showToast("Lien introuvable ou désactivé","err"); return; }
+      const l=s.docs[0].data(); linkPreview={id:s.docs[0].id,...l};
+      document.getElementById("co-mname").textContent=l.merchantName||"Vendeur";
+      document.getElementById("co-logo").textContent=(l.merchantName||"F2K").slice(0,2).toUpperCase();
+      document.getElementById("co-cur").textContent=(l.currency||"XOF")+" ";
+      document.getElementById("co-amt").textContent=(l.amount||0).toLocaleString();
+      document.getElementById("co-desc").textContent=l.description||l.name;
+      document.getElementById("co-pay-amt").textContent=`${(l.amount||0).toLocaleString()} ${l.currency||'XOF'}`;
+      document.querySelector("nav").style.display="none";
+      goPage("checkout-pg");
+    });
+})();
+</script>
 
 // ╔══════════════════════════════════════╗
 // ║  FIREBASE CONFIG — À remplacer       ║
@@ -1003,7 +1700,7 @@ const firebaseConfig = {
 // ║  CLOUDINARY CONFIG — À remplacer     ║
 // ╚══════════════════════════════════════╝
 const CDN = {
-  cloud: "VOTRE_CLOUD_NAME",       // ex: "f2kpay"
+  cloud: "dlso5jnql",       // cloud name Cloudinary
   preset: "VOTRE_UPLOAD_PRESET",   // ex: "f2kpay_kyc" (unsigned preset)
 };
 
